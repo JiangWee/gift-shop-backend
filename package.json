@@ -1,0 +1,35 @@
+{
+  "name": "gift-shop-hybrid-backend",
+  "version": "1.0.0",
+  "description": "用户认证后端 + Google Sheets订单管理",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "vercel-build": "echo 'Vercel build completed'",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "jsonwebtoken": "^9.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.7.0",
+    "dotenv": "^16.0.3",
+    "express-validator": "^7.0.1",
+    "googleapis": "^105.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20",
+    "@vercel/node": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "keywords": ["gift", "ecommerce", "api", "google-sheets"],
+  "author": "Your Name",
+  "license": "MIT"
+}
