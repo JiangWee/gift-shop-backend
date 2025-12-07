@@ -6,30 +6,44 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "vercel-build": "echo 'Vercel build completed'",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test:db": "node scripts/test-mysql.js",
+    "test:auth": "node scripts/test-auth.js",
+    "test:api": "node scripts/test-api.js",
+    "test:config": "node scripts/validate-config.js",
+    "validate": "npm run test:config && npm run test:db"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "mysql2": "^3.6.0",
-    "jsonwebtoken": "^9.0.0",
+    "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
-    "helmet": "^7.0.0",
-    "express-rate-limit": "^6.7.0",
     "dotenv": "^16.0.3",
+    "ejs": "^3.1.10",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
     "express-validator": "^7.0.1",
     "googleapis": "^105.0.0",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.6.0",
+    "nodemailer": "^7.0.11",
+    "sharp": "^0.34.5",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20",
-    "@vercel/node": "^2.0.0"
+    "@vercel/node": "^2.0.0",
+    "nodemon": "^2.0.20"
   },
   "engines": {
     "node": ">=18.x"
   },
-  "keywords": ["gift", "ecommerce", "api", "google-sheets"],
+  "keywords": [
+    "gift",
+    "ecommerce",
+    "api",
+    "google-sheets"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
