@@ -10,10 +10,10 @@ app.use(helmet());
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
         ? [
-            'https://your-frontend-domain.vercel.app',
-            'http://localhost:3000'
+            'https://giftbuybuy.vercel.app',
+            'http://localhost:8000'
           ]
-        : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+        : ['http://localhost:8000', 'http://127.0.0.1:8000'],
     credentials: true
 }));
 

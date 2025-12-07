@@ -1,3 +1,46 @@
+# 礼品电商混合后端 API
+
+基于 Node.js + Express 的混合架构后端系统，用户认证使用 MySQL 数据库，订单管理使用 Google Sheets。
+
+## 架构特点
+
+- **用户认证**: MySQL 数据库（安全可靠）
+- **订单管理**: Google Sheets（易于管理）
+- **部署平台**: Vercel（无服务器架构）
+- **认证方式**: JWT Token
+
+## 功能特性
+
+### 用户认证功能
+- ✅ 用户注册/登录
+- ✅ JWT Token 认证
+- ✅ 密码加密存储
+- ✅ Token 刷新机制
+
+### 订单管理功能  
+- ✅ 创建新订单
+- ✅ 查询用户订单
+- ✅ 订单状态更新
+- ✅ 订单统计信息
+
+## 快速开始
+
+### 环境要求
+
+- Node.js 18+
+- MySQL 数据库（或 PlanetScale）
+- Google Sheets API 权限
+
+### 安装步骤
+
+1. **克隆项目**
+```bash
+git clone https://github.com/JiangWee/gift-shop-backend.git
+cd gift-shop-backend
+
+
+## 代码架构
+
 gift-shop-backend/
 ├── api/
 │   └── index.js                      # Vercel无服务器函数入口
