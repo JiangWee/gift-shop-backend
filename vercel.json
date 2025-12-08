@@ -9,16 +9,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "rewrites": [
-    {
-      "source": "/uploads/(.*)",
-      "destination": "/api/uploads/:1"
+      "dest": "/$1"
     }
   ]
 }
