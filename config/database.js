@@ -10,7 +10,7 @@ function parseDatabaseUrl() {
             user: url.username,
             password: url.password,
             database: url.pathname.replace('/', ''),
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
         };
     }
     

@@ -1,88 +1,125 @@
-// API 测试脚本
-const https = require('https');
+// scripts/test-api.js
+const axios = require('axios');
 
-class ApiTester {
-    constructor(baseURL) {
-        this.baseURL = baseURL.replace('https://', '');
-        this.accessToken = null;
-    }
+const BASE_URL = 'http://localhost:3000';
+let registeredUser = null; // 保存注册用户信息
 
-    async request(method, path, data = null, headers = {}) {
-        return new Promise((resolve, reject) => {
-            const options = {
-                hostname: this.baseURL,
-                port: 443,
-                path: path,
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...headers
-                }
-            };
-
-            const req = https.request(options, (res) => {
-                let responseData = '';
-                res.on('data', (chunk) => responseData += chunk);
-                res.on('end', () => {
-                    try {
-                        const jsonData = JSON.parse(responseData);
-                        resolve({
-                            status: res.statusCode,
-                            data: jsonData
-                        });
-                    } catch (e) {
-                        resolve({
-                            status: res.statusCode,
-                            data: responseData
-                        });
-                    }
-                });
-            });
-
-            req.on('error', reject);
-            
-            if (data) {
-                req.write(JSON.stringify(data));
-            }
-            
-            req.end();
-        });
-    }
-
-    async testHealth() {
+async function testHealthCheck() {
+    try {
         console.log('🧪 测试健康检查...');
-        const result = await this.request('GET', '/api/health');
-        console.log('状态:', result.status, '-', result.data.status);
-        return result.status === 200;
+        const response = await axios.get(`${BASE_URL}/api/health`);
+        console.log('✅ 健康检查测试通过:', response.data);
+        return true;
+    } catch (error) {
+        console.error('❌ 健康检查测试失败:', error.message);
+        return false;
     }
+}
 
-    async testRegistration() {
+async function testUserRegistration() {
+    try {
         console.log('🧪 测试用户注册...');
-        const testEmail = `test${Date.now()}@example.com`;
-        const result = await this.request('POST', '/api/auth/register', {
-            email: testEmail,
-            phone: `138${Date.now().toString().slice(-8)}`,
-            password: 'Test123456',
-            confirm: 'Test123456'
-        });
         
-        console.log('状态:', result.status, '-', result.data.message);
+        const userData = {
+            email: `test${Date.now()}@example.com`,
+            phone: `1380013${String(Date.now()).slice(-4)}`,
+            password: 'Test123456!',
+            confirm: 'Test123456!',
+            username: `testuser${Date.now()}`
+        };
         
-        if (result.data.success) {
-            this.accessToken = result.data.data.accessToken;
+        console.log('📤 发送注册数据:', JSON.stringify(userData, null, 2));
+        
+        const response = await axios.post(`${BASE_URL}/api/auth/register`, userData);
+        
+        if (response.data.success) {
+            console.log('✅ 用户注册测试通过');
+            console.log('   响应数据:', JSON.stringify(response.data, null, 2));
+            
+            // 保存注册用户信息用于后续测试
+            registeredUser = {
+                email: userData.email,
+                password: userData.password,
+                id: response.data.data.user.id
+            };
+            
+            return true;
+        } else {
+            console.error('❌ 注册失败:', response.data.message);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ 用户注册测试失败:');
+        if (error.response) {
+            console.error('   状态码:', error.response.status);
+            console.error('   错误信息:', error.response.data?.message);
+            if (error.response.data?.errors) {
+                console.error('   验证错误详情:');
+                error.response.data.errors.forEach(err => {
+                    console.error(`     - ${err.field || '未知字段'}: ${err.message}`);
+                });
+            }
+        } else {
+            console.error('   网络错误:', error.message);
+        }
+        return false;
+    }
+}
+
+async function testLogin() {
+    try {
+        console.log('🧪 测试用户登录...');
+        
+        if (!registeredUser) {
+            console.log('⚠️ 没有注册用户信息，跳过登录测试');
+            return null;
         }
         
-        return result.status === 201;
+        const loginData = {
+            identifier: registeredUser.email,
+            password: registeredUser.password
+        };
+        
+        console.log('📤 发送登录数据:', JSON.stringify(loginData, null, 2));
+        
+        const response = await axios.post(`${BASE_URL}/api/auth/login`, loginData);
+        
+        if (response.data.success) {
+            console.log('✅ 用户登录测试通过');
+            console.log('   令牌:', response.data.data.accessToken ? '已获取' : '未获取');
+            return response.data.data.accessToken;
+        } else {
+            console.error('❌ 登录失败:', response.data.message);
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ 用户登录测试失败:');
+        if (error.response) {
+            console.error('   状态码:', error.response.status);
+            console.error('   错误信息:', error.response.data?.message);
+            if (error.response.data?.errors) {
+                console.error('   验证错误详情:');
+                error.response.data.errors.forEach(err => {
+                    console.error(`     - ${err.field || '未知字段'}: ${err.message}`);
+                });
+            }
+        } else {
+            console.error('   网络错误:', error.message);
+        }
+        return null;
     }
+}
 
-    async testOrderCreation() {
-        if (!this.accessToken) {
-            console.log('⚠️  需要先登录');
+async function testOrderCreation(token) {
+    try {
+        console.log('🧪 测试订单创建...');
+        
+        if (!token) {
+            console.log('⚠️ 没有有效的token，跳过订单测试');
             return false;
         }
 
-        console.log('🧪 测试订单创建...');
-        const result = await this.request('POST', '/api/orders', {
+        const orderData = {
             product_id: 'prod_001',
             product_name: '测试礼品',
             price: 99.99,
@@ -96,49 +133,78 @@ class ApiTester {
                 name: '测试收件人',
                 phone: '13900139000',
                 address: {
-                    street: '测试地址',
+                    street: '测试街道',
                     city: '测试城市',
                     state: '测试省',
                     zip: '100000',
-                    country: 'china'
+                    country: '中国'
                 }
             },
-            gift_message: '测试订单',
+            gift_message: '这是一个测试订单的留言',
             delivery_date: '2024-12-31'
-        }, {
-            'Authorization': `Bearer ${this.accessToken}`
+        };
+        
+        console.log('📤 发送订单数据:', JSON.stringify(orderData, null, 2));
+        
+        const response = await axios.post(`${BASE_URL}/api/orders`, orderData, {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
-
-        console.log('状态:', result.status, '-', result.data.message);
-        return result.status === 201;
-    }
-
-    async runAllTests() {
-        console.log('🚀 开始API测试\n');
         
-        const tests = [
-            await this.testHealth(),
-            await this.testRegistration(),
-            await this.testOrderCreation()
-        ];
-
-        const passed = tests.filter(Boolean).length;
-        const total = tests.length;
-        
-        console.log(`\n📊 测试结果: ${passed}/${total} 通过`);
-        
-        if (passed === total) {
-            console.log('🎉 所有测试通过！');
+        if (response.data.success) {
+            console.log('✅ 订单创建测试通过');
+            console.log('   订单ID:', response.data.data?.orderId);
+            return true;
         } else {
-            console.log('❌ 部分测试失败');
+            console.error('❌ 订单创建失败:', response.data.message);
+            return false;
         }
+    } catch (error) {
+        console.error('❌ 订单创建测试失败:');
+        if (error.response) {
+            console.error('   状态码:', error.response.status);
+            console.error('   错误信息:', error.response.data?.message);
+            if (error.response.data?.errors) {
+                console.error('   验证错误详情:');
+                error.response.data.errors.forEach(err => {
+                    console.error(`     - ${err.field || '未知字段'}: ${err.message}`);
+                });
+            }
+        } else {
+            console.error('   网络错误:', error.message);
+        }
+        return false;
+    }
+}
+
+async function runAllTests() {
+    console.log('🚀 开始API测试');
+    console.log('='.repeat(50));
+    
+    const healthCheck = await testHealthCheck();
+    const registration = await testUserRegistration();
+    const token = await testLogin();
+    const orderCreation = token ? await testOrderCreation(token) : false;
+    
+    const tests = [healthCheck, registration, token !== null, orderCreation];
+    const passed = tests.filter(result => result).length;
+    const total = tests.length;
+    
+    console.log('='.repeat(50));
+    console.log(`📊 测试结果: ${passed}/${total} 通过`);
+    
+    if (passed === total) {
+        console.log('🎉 所有API测试通过！');
+        process.exit(0);
+    } else {
+        console.log('❌ 部分测试失败');
+        process.exit(1);
     }
 }
 
 // 如果是直接运行此脚本
 if (require.main === module) {
-    const tester = new ApiTester('https://giftbuybuy.vercel.app');
-    tester.runAllTests();
+    runAllTests();
 }
-
-module.exports = ApiTester;

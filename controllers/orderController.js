@@ -1,4 +1,4 @@
-const googleSheetsUtils = require('../utils/googleSheetsUtils');
+const orderModel = require('../models/orderModel');
 const authUtils = require('../utils/authUtils');
 
 class OrderController {
@@ -23,14 +23,12 @@ class OrderController {
 
             // 准备订单数据
             const orderData = {
-                orderId,
+                id: orderId,
                 userId: user.userId,
-                userEmail: user.email,
+                productId: product_id,
                 productName: product_name,
                 price: parseFloat(price),
                 quantity: parseInt(quantity),
-                buyerName: buyer_info.name,
-                recipientName: recipient_info.name,
                 buyerInfo: buyer_info,
                 recipientInfo: recipient_info,
                 giftMessage: gift_message || '',
@@ -38,16 +36,15 @@ class OrderController {
                 status: 'pending'
             };
 
-            // 保存到Google表格
-            const result = await googleSheetsUtils.addOrder(orderData);
+            // 保存到数据库
+            await orderModel.create(orderData);
 
             res.status(201).json({
                 success: true,
                 message: '订单创建成功',
                 data: { 
                     orderId,
-                    orderDate: new Date().toISOString(),
-                    sheetInfo: result
+                    orderDate: new Date().toISOString()
                 }
             });
 
@@ -55,7 +52,7 @@ class OrderController {
             console.error('创建订单错误:', error);
             res.status(500).json({
                 success: false,
-                message: error.message || '订单创建失败，请稍后重试'
+                message: '订单创建失败，请稍后重试'
             });
         }
     }
@@ -64,14 +61,31 @@ class OrderController {
     async getOrders(req, res) {
         try {
             const user = req.user;
-            const orders = await googleSheetsUtils.getUserOrders(user.userId);
+            const orders = await orderModel.findByUserId(user.userId);
+
+            // 格式化返回数据
+            const formattedOrders = orders.map(order => ({
+                orderId: order.id,
+                userId: order.user_id,
+                productId: order.product_id,
+                productName: order.product_name,
+                price: parseFloat(order.price),
+                quantity: order.quantity,
+                buyerInfo: JSON.parse(order.buyer_info || '{}'),
+                recipientInfo: JSON.parse(order.recipient_info || '{}'),
+                giftMessage: order.gift_message,
+                deliveryDate: order.delivery_date,
+                status: order.status,
+                createdAt: order.created_at,
+                updatedAt: order.updated_at
+            }));
 
             res.json({
                 success: true,
                 data: { 
-                    orders,
-                    total: orders.length,
-                    message: orders.length === 0 ? '暂无订单' : '获取订单成功'
+                    orders: formattedOrders,
+                    total: formattedOrders.length,
+                    message: formattedOrders.length === 0 ? '暂无订单' : '获取订单成功'
                 }
             });
 
@@ -90,9 +104,7 @@ class OrderController {
             const { id } = req.params;
             const user = req.user;
             
-            // 获取用户所有订单
-            const orders = await googleSheetsUtils.getUserOrders(user.userId);
-            const order = orders.find(o => o.orderId === id);
+            const order = await orderModel.findById(id);
 
             if (!order) {
                 return res.status(404).json({
@@ -101,9 +113,34 @@ class OrderController {
                 });
             }
 
+            // 验证订单属于当前用户
+            if (order.user_id !== user.userId) {
+                return res.status(403).json({
+                    success: false,
+                    message: '无权访问此订单'
+                });
+            }
+
+            // 格式化订单数据
+            const formattedOrder = {
+                orderId: order.id,
+                userId: order.user_id,
+                productId: order.product_id,
+                productName: order.product_name,
+                price: parseFloat(order.price),
+                quantity: order.quantity,
+                buyerInfo: JSON.parse(order.buyer_info || '{}'),
+                recipientInfo: JSON.parse(order.recipient_info || '{}'),
+                giftMessage: order.gift_message,
+                deliveryDate: order.delivery_date,
+                status: order.status,
+                createdAt: order.created_at,
+                updatedAt: order.updated_at
+            };
+
             res.json({
                 success: true,
-                data: { order }
+                data: { order: formattedOrder }
             });
 
         } catch (error) {
@@ -132,9 +169,7 @@ class OrderController {
             }
 
             // 先验证订单属于当前用户
-            const orders = await googleSheetsUtils.getUserOrders(user.userId);
-            const orderExists = orders.some(o => o.orderId === id);
-            
+            const orderExists = await orderModel.isOrderBelongsToUser(id, user.userId);
             if (!orderExists) {
                 return res.status(404).json({
                     success: false,
@@ -143,7 +178,7 @@ class OrderController {
             }
 
             // 更新订单状态
-            await googleSheetsUtils.updateOrderStatus(id, status);
+            await orderModel.updateStatus(id, status);
 
             res.json({
                 success: true,
@@ -155,7 +190,7 @@ class OrderController {
             console.error('更新订单状态错误:', error);
             res.status(500).json({
                 success: false,
-                message: error.message || '更新订单状态失败'
+                message: '更新订单状态失败'
             });
         }
     }
@@ -164,21 +199,24 @@ class OrderController {
     async getOrderStats(req, res) {
         try {
             const user = req.user;
-            const orders = await googleSheetsUtils.getUserOrders(user.userId);
+            const stats = await orderModel.getStats(user.userId);
 
-            const stats = {
-                totalOrders: orders.length,
-                totalAmount: orders.reduce((sum, order) => sum + (order.price * order.quantity), 0),
-                pendingOrders: orders.filter(o => o.status === 'pending').length,
-                completedOrders: orders.filter(o => o.status === 'delivered').length,
-                averageOrderValue: orders.length > 0 
-                    ? orders.reduce((sum, order) => sum + (order.price * order.quantity), 0) / orders.length 
-                    : 0
+            // 计算平均订单价值
+            const averageOrderValue = stats.totalOrders > 0 
+                ? stats.totalAmount / stats.totalOrders 
+                : 0;
+
+            const enhancedStats = {
+                totalOrders: stats.totalOrders || 0,
+                totalAmount: parseFloat(stats.totalAmount || 0).toFixed(2),
+                pendingOrders: stats.pendingOrders || 0,
+                completedOrders: stats.completedOrders || 0,
+                averageOrderValue: parseFloat(averageOrderValue).toFixed(2)
             };
 
             res.json({
                 success: true,
-                data: { stats }
+                data: { stats: enhancedStats }
             });
 
         } catch (error) {

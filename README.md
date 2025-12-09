@@ -1,7 +1,9 @@
 # 礼品电商混合后端 API
 
 基于 Node.js + Express 的混合架构后端系统，用户认证使用 MySQL 数据库，订单管理使用 Google Sheets。
+这是一个混合架构的后端，使用MySQL进行用户认证，使用Google Sheets进行订单管理。现在要部署到Railway，但之前是为Vercel配置的，所以代码中保留了一部分vercel的配置内容。
 
+后端工作的流程大致如下：
 用户请求 → API路由 → 中间件验证 → 控制器处理 → 数据库/Google Sheets → 返回响应
 
 
@@ -9,7 +11,7 @@
 
 - **用户认证**: MySQL 数据库（安全可靠）
 - **订单管理**: Google Sheets（易于管理）
-- **部署平台**: Vercel（无服务器架构）
+- **部署平台**: Railway/Vercel（无服务器架构）
 - **认证方式**: JWT Token
 
 ## 功能特性

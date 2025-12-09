@@ -1,46 +1,40 @@
 require('dotenv').config();
 const { execSync } = require('child_process');
-const fs = require('fs');
 
-console.log('🚀 开始部署准备...');
+console.log('🚀 Railway部署前检查开始...\n');
 
-// 检查环境变量
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'DATABASE_URL',
-  'GOOGLE_SHEET_ID',
-  'GOOGLE_CREDENTIALS_JSON'
-];
-
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingVars.length > 0) {
-  console.error('❌ 缺少必要的环境变量:');
-  missingVars.forEach(varName => console.error(`   - ${varName}`));
-  process.exit(1);
-}
-
-console.log('✅ 环境变量检查通过');
-
-// 构建步骤
 try {
-  console.log('📦 安装依赖...');
-  execSync('npm install', { stdio: 'inherit' });
-
-  console.log('🧪 运行测试...');
+  // 1. 检查环境变量
+  console.log('1. 检查环境变量...');
+  require('./validate-env.js');
+  
+  // 2. 检查数据库连接
+  console.log('\n2. 测试数据库连接...');
+  execSync('npm run test:db', { stdio: 'inherit' });
+  
+  // 3. 检查配置文件
+  console.log('\n3. 验证配置文件...');
   execSync('npm run test:config', { stdio: 'inherit' });
-
-  console.log('🔧 构建前端...');
-  // 这里可以添加前端构建命令
-  // execSync('cd frontend && npm run build', { stdio: 'inherit' });
-
-  console.log('✅ 部署准备完成！');
-  console.log('\n💡 下一步:');
-  console.log('   1. 将代码推送到GitHub');
-  console.log('   2. 连接Vercel并部署');
-  console.log('   3. 设置生产环境变量');
-
+  
+  // 4. 语法检查
+  console.log('\n4. 语法检查...');
+  execSync('node -c server.js', { stdio: 'inherit' });
+  execSync('node -c app.js', { stdio: 'inherit' });
+  
+  // 5. 依赖检查
+  console.log('\n5. 检查依赖...');
+  const pkg = require('../package.json');
+  const requiredDeps = ['express', 'mysql2', 'googleapis', 'jsonwebtoken'];
+  requiredDeps.forEach(dep => {
+    if (!pkg.dependencies[dep]) {
+      throw new Error(`缺失依赖: ${dep}`);
+    }
+  });
+  console.log('✅ 所有必需依赖已安装');
+  
+  console.log('\n🎉 所有检查通过！可以部署到Railway');
+  
 } catch (error) {
-  console.error('❌ 部署准备失败:', error.message);
+  console.error('\n❌ 部署检查失败:', error.message);
   process.exit(1);
 }
