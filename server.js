@@ -3,6 +3,24 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 
+const cors = require('cors');
+
+// 允许所有来源（开发环境）
+// app.use(cors());
+
+// 生产环境建议指定允许的来源
+const allowedOrigins = ['http://127.0.0.1:8000', 'https://giftbuybuy.vercel.app/'];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 // 中间件配置
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
