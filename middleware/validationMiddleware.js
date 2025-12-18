@@ -56,14 +56,34 @@ const validateOrder = [
         .withMessage('收件人姓名不能为空')
 ];
 
-// 处理验证结果
+
 const handleValidationErrors = (req, res, next) => {
     const errors = validationResult(req);
+    
+    // 添加调试日志
+    console.log('📝 注册请求数据:', {
+        email: req.body.email,
+        phone: req.body.phone,
+        password: req.body.password ? '***' : '未提供',
+        confirm: req.body.confirm ? '***' : '未提供',
+        passwordMatch: req.body.password === req.body.confirm
+    });
+    
+    console.log('🔍 验证错误:', errors.array());
+    
     if (!errors.isEmpty()) {
         return res.status(400).json({
             success: false,
             message: '数据验证失败',
-            errors: errors.array()
+            errors: errors.array(),
+            debug: {
+                receivedData: {
+                    email: req.body.email,
+                    phone: req.body.phone,
+                    hasPassword: !!req.body.password,
+                    hasConfirm: !!req.body.confirm
+                }
+            }
         });
     }
     next();

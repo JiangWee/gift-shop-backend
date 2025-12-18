@@ -9,7 +9,7 @@ const cors = require('cors');
 // app.use(cors());
 
 // 生产环境建议指定允许的来源
-const allowedOrigins = ['http://127.0.0.1:8000', 'https://giftbuybuy.vercel.app'];
+const allowedOrigins = ['http://localhost:8000','http://127.0.0.1:8000', 'https://giftbuybuy.vercel.app'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {

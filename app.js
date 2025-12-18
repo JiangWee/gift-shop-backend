@@ -8,16 +8,23 @@ const app = express();
 
 // 安全中间件
 app.use(helmet());
-app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? [
-            'https://giftbuybuy.vercel.app',
-            'http://localhost:8000'
-          ]
-        : ['http://localhost:8000', 'http://127.0.0.1:8000'],
-    credentials: true
-}));
 
+if (process.env.NODE_ENV === 'development') {
+    app.use(cors({
+        origin: true, // 反射请求的Origin
+        credentials: true
+    }));
+} else {
+    // 生产环境：限制特定来源
+    app.use(cors({
+        origin: [
+            'https://giftbuybuy.vercel.app',
+            'http://localhost:8000',
+            'http://127.0.0.1:8000'
+        ],
+        credentials: true
+    }));
+}
 // 速率限制
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
