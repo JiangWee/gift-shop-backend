@@ -1,6 +1,15 @@
 const { pool } = require('../config/database');
 
 class UserModel {
+    // 根据用户名查找用户
+    async findByUsername(username) {
+        const [rows] = await pool.execute(
+            'SELECT * FROM users WHERE username = ? AND status = "active"', 
+            [username]
+        );
+        return rows[0];
+    }
+
     // 根据邮箱查找用户
     async findByEmail(email) {
         const [rows] = await pool.execute(
@@ -19,10 +28,19 @@ class UserModel {
         return rows[0];
     }
 
+    // 检查用户名、邮箱、手机号是否已存在
+    async checkExistingUser(username, email, phone) {
+        const [rows] = await pool.execute(
+            'SELECT username, email, phone FROM users WHERE username = ? OR email = ? OR phone = ?',
+            [username, email, phone]
+        );
+        return rows;
+    }
+
     // 根据ID查找用户（不返回密码）
     async findById(id) {
         const [rows] = await pool.execute(
-            `SELECT id, email, phone, username, created_at, updated_at, last_login, status 
+            `SELECT id, username, email, phone, created_at, updated_at, last_login, status 
              FROM users WHERE id = ? AND status = "active"`, 
             [id]
         );
@@ -31,10 +49,10 @@ class UserModel {
 
     // 创建用户
     async create(userData) {
-        const { id, email, phone, password_hash, username } = userData;
+        const { id, username, email, phone, password_hash } = userData;
         const [result] = await pool.execute(
-            'INSERT INTO users (id, email, phone, password_hash, username) VALUES (?, ?, ?, ?, ?)',
-            [id, email, phone, password_hash, username]
+            'INSERT INTO users (id, username, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)',
+            [id, username, email, phone, password_hash]
         );
         return result.insertId;
     }
@@ -45,15 +63,6 @@ class UserModel {
             'UPDATE users SET last_login = NOW() WHERE id = ?',
             [id]
         );
-    }
-
-    // 检查邮箱或手机号是否已存在
-    async checkExistingUser(email, phone) {
-        const [rows] = await pool.execute(
-            'SELECT id, email, phone FROM users WHERE email = ? OR phone = ?',
-            [email, phone]
-        );
-        return rows;
     }
 }
 

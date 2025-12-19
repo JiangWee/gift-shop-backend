@@ -5,14 +5,29 @@ class AuthController {
     // 用户注册
     async register(req, res) {
         try {
-            const { email, phone, password, confirm } = req.body;
+            const { username, email, phone, password, confirm } = req.body;
             
-            // 检查用户是否已存在
-            const existingUsers = await userModel.checkExistingUser(email, phone);
+            // 检查必填字段
+            if (!username || !email || !phone || !password) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请填写所有必填字段'
+                });
+            }
+            
+            // 检查用户名、邮箱、手机号是否已存在
+            const existingUsers = await userModel.checkExistingUser(username, email, phone);
             if (existingUsers.length > 0) {
+                const existingUsername = existingUsers.find(u => u.username === username);
                 const existingEmail = existingUsers.find(u => u.email === email);
                 const existingPhone = existingUsers.find(u => u.phone === phone);
                 
+                if (existingUsername) {
+                    return res.status(409).json({
+                        success: false,
+                        message: '该用户名已被注册'
+                    });
+                }
                 if (existingEmail) {
                     return res.status(409).json({
                         success: false,
@@ -33,10 +48,10 @@ class AuthController {
             
             await userModel.create({
                 id: userId,
+                username,
                 email,
                 phone,
-                password_hash: passwordHash,
-                username: email.split('@')[0]
+                password_hash: passwordHash
             });
 
             // 生成Token
@@ -52,7 +67,7 @@ class AuthController {
             // 更新最后登录时间
             await userModel.updateLastLogin(userId);
 
-            res.status(201).json({
+            const responseData = {
                 success: true,
                 message: '注册成功',
                 data: {
@@ -60,11 +75,16 @@ class AuthController {
                     refreshToken,
                     user: {
                         id: userId,
+                        username,
                         email,
-                        username: email.split('@')[0]
+                        phone
                     }
                 }
-            });
+            };
+
+            console.log('注册响应数据:', JSON.stringify(responseData, null, 2));
+            
+            res.status(201).json(responseData);
 
         } catch (error) {
             console.error('注册错误:', error);
@@ -79,26 +99,35 @@ class AuthController {
     async login(req, res) {
         try {
             const { identifier, password } = req.body;
+            console.log('登录请求参数:', { identifier, password });
 
-            // 根据邮箱或手机号查找用户
-            let user = await userModel.findByEmail(identifier);
+            // 根据用户名、邮箱或手机号查找用户
+            let user = await userModel.findByUsername(identifier);
+            if (!user) {
+                user = await userModel.findByEmail(identifier);
+            }
             if (!user) {
                 user = await userModel.findByPhone(identifier);
             }
 
+            console.log('查询到的用户:', user);
+
+            // 用户不存在
             if (!user) {
-                return res.status(401).json({
+                return res.status(404).json({
                     success: false,
-                    message: '账号或密码错误'
+                    message: '用户不存在，请先注册'
                 });
             }
 
             // 验证密码
             const isPasswordValid = await authUtils.comparePassword(password, user.password_hash);
+            console.log('密码验证结果:', isPasswordValid);
+
             if (!isPasswordValid) {
                 return res.status(401).json({
                     success: false,
-                    message: '账号或密码错误'
+                    message: '密码错误'
                 });
             }
 
@@ -112,10 +141,12 @@ class AuthController {
                 userId: user.id 
             });
 
+            console.log('生成的Token:', { accessToken, refreshToken });
+
             // 更新最后登录时间
             await userModel.updateLastLogin(user.id);
 
-            res.json({
+            const responseData = {
                 success: true,
                 message: '登录成功',
                 data: {
@@ -123,12 +154,16 @@ class AuthController {
                     refreshToken,
                     user: {
                         id: user.id,
-                        email: user.email,
                         username: user.username,
+                        email: user.email,
                         phone: user.phone
                     }
                 }
-            });
+            };
+
+            console.log('登录响应数据:', JSON.stringify(responseData, null, 2));
+            
+            res.json(responseData);
 
         } catch (error) {
             console.error('登录错误:', error);

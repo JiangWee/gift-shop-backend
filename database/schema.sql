@@ -6,14 +6,15 @@ USE gift_shop;
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(50) PRIMARY KEY COMMENT '用户ID',
+    username VARCHAR(100) UNIQUE NOT NULL COMMENT '用户名', -- 改为UNIQUE NOT NULL
     email VARCHAR(255) UNIQUE NOT NULL COMMENT '邮箱',
     phone VARCHAR(20) UNIQUE COMMENT '手机号',
     password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
-    username VARCHAR(100) COMMENT '用户名',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     last_login TIMESTAMP NULL COMMENT '最后登录时间',
     status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '用户状态',
+    INDEX idx_username (username), -- 增加用户名索引
     INDEX idx_email (email),
     INDEX idx_phone (phone),
     INDEX idx_status (status)
