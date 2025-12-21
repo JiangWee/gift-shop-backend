@@ -9,26 +9,20 @@ class EmailService {
     
     init() {
         try {
-            // 使用Gmail SMTP（推荐）
             if (process.env.EMAIL_SERVICE === 'gmail') {
                 this.transporter = nodemailer.createTransport({
                     service: 'gmail',
+                    // 使用587端口替代465，更可靠
+                    port: 587,
+                    secure: false, // 587端口使用TLS，不是SSL
                     auth: {
                         user: process.env.EMAIL_USER,
-                        pass: process.env.EMAIL_PASSWORD, // 使用应用专用密码
+                        pass: process.env.EMAIL_PASSWORD,
                     },
-                });
-            }
-            // 使用其他SMTP服务
-            else if (process.env.SMTP_HOST) {
-                this.transporter = nodemailer.createTransport({
-                    host: process.env.SMTP_HOST,
-                    port: process.env.SMTP_PORT || 587,
-                    secure: process.env.SMTP_SECURE === 'true',
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASSWORD,
-                    },
+                    // 增加超时设置
+                    connectionTimeout: 10000, // 10秒连接超时
+                    greetingTimeout: 10000,   // 10秒问候超时
+                    socketTimeout: 10000,     // 10秒socket超时
                 });
             }
             // 使用Ethereal邮箱（测试用）
