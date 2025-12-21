@@ -1,5 +1,7 @@
 const userModel = require('../models/userModel');
 const authUtils = require('../utils/authUtils');
+const verificationService = require('../services/verificationService');
+const emailService = require('../utils/emailService'); // 确保emailService已配置
 
 class AuthController {
     // 用户注册
@@ -270,6 +272,221 @@ class AuthController {
             res.status(500).json({
                 success: false,
                 message: '获取用户信息失败'
+            });
+        }
+    }
+
+        // 发送验证码
+    async sendVerificationCode(req, res) {
+        try {
+            const { email } = req.body;
+            
+            console.log('📧 发送验证码请求:', { email });
+            
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: '邮箱地址不能为空'
+                });
+            }
+            
+            // 验证邮箱格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请输入有效的邮箱地址'
+                });
+            }
+            
+            // 检查用户是否存在
+            const user = await userModel.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: '该邮箱未注册，请先注册账号'
+                });
+            }
+            
+            // 生成验证码
+            const verificationCode = authUtils.generateVerificationCode();
+            
+            // 存储验证码
+            verificationService.storeCode(email, verificationCode);
+            
+            // 发送邮件（这里需要配置好emailService）
+            try {
+                await emailService.sendVerificationCodeEmail(user, verificationCode);
+                
+                res.json({
+                    success: true,
+                    message: '验证码已发送到您的邮箱，10分钟内有效',
+                    data: {
+                        email: email,
+                        expiresIn: '10分钟'
+                    }
+                });
+                
+            } catch (emailError) {
+                console.error('❌ 邮件发送失败:', emailError);
+                
+                // 邮件发送失败，但验证码已生成，可以返回给前端用于测试
+                if (process.env.NODE_ENV === 'development') {
+                    res.json({
+                        success: true,
+                        message: '验证码生成成功（邮件服务暂不可用）',
+                        data: {
+                            email: email,
+                            verificationCode: verificationCode, // 仅开发环境返回
+                            expiresIn: '10分钟',
+                            debug: '邮件服务配置中，请手动输入验证码'
+                        }
+                    });
+                } else {
+                    res.status(500).json({
+                        success: false,
+                        message: '验证码发送失败，请稍后重试'
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('发送验证码错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '发送验证码失败，请稍后重试'
+            });
+        }
+    }
+    
+    // 验证验证码
+    async verifyCode(req, res) {
+        try {
+            const { email, code } = req.body;
+            
+            console.log('🔍 验证验证码请求:', { email, code });
+            
+            if (!email || !code) {
+                return res.status(400).json({
+                    success: false,
+                    message: '邮箱和验证码不能为空'
+                });
+            }
+            
+            // 验证验证码
+            const verificationResult = verificationService.verifyCode(email, code);
+            
+            if (!verificationResult.valid) {
+                return res.status(400).json({
+                    success: false,
+                    message: verificationResult.message,
+                    attemptsLeft: verificationResult.attemptsLeft
+                });
+            }
+            
+            // 验证成功，生成重置令牌
+            const resetToken = authUtils.generateVerificationToken({ 
+                email: email,
+                purpose: 'password_reset'
+            });
+            
+            res.json({
+                success: true,
+                message: '验证码验证成功',
+                data: {
+                    resetToken: resetToken,
+                    expiresIn: '10分钟'
+                }
+            });
+            
+        } catch (error) {
+            console.error('验证验证码错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '验证码验证失败，请稍后重试'
+            });
+        }
+    }
+    
+    // 重置密码
+    async resetPassword(req, res) {
+        try {
+            const { resetToken, newPassword } = req.body;
+            
+            console.log('🔄 重置密码请求:', { 
+                hasToken: !!resetToken, 
+                hasNewPassword: !!newPassword 
+            });
+            
+            if (!resetToken || !newPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: '重置令牌和新密码不能为空'
+                });
+            }
+            
+            // 验证密码强度
+            if (newPassword.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: '密码长度至少6位'
+                });
+            }
+            
+            // 验证重置令牌
+            let decoded;
+            try {
+                decoded = authUtils.verifyVerificationToken(resetToken);
+            } catch (tokenError) {
+                return res.status(400).json({
+                    success: false,
+                    message: '重置令牌无效或已过期，请重新验证'
+                });
+            }
+            
+            // 检查令牌用途
+            if (decoded.purpose !== 'password_reset') {
+                return res.status(400).json({
+                    success: false,
+                    message: '无效的重置令牌'
+                });
+            }
+            
+            const email = decoded.email;
+            
+            // 查找用户
+            const user = await userModel.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: '用户不存在'
+                });
+            }
+            
+            // 加密新密码
+            const passwordHash = await authUtils.hashPassword(newPassword);
+            
+            // 更新密码（需要先扩展userModel）
+            await userModel.updatePassword(user.id, passwordHash);
+            
+            // 发送密码重置成功邮件
+            try {
+                await emailService.sendPasswordResetSuccessEmail(user);
+            } catch (emailError) {
+                console.error('密码重置成功邮件发送失败:', emailError);
+                // 不阻断主要流程
+            }
+            
+            res.json({
+                success: true,
+                message: '密码重置成功，请使用新密码登录'
+            });
+            
+        } catch (error) {
+            console.error('重置密码错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '密码重置失败，请稍后重试'
             });
         }
     }

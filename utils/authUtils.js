@@ -1,6 +1,7 @@
 // utils/authUtils.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 class AuthUtils {
     // 生成访问令牌
@@ -81,6 +82,30 @@ class AuthUtils {
     // 生成订单ID
     static generateOrderId() {
         return 'ord_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+        // 生成6位数字验证码
+    static generateVerificationCode() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+    
+    // 生成验证码令牌（用于验证流程）
+    static generateVerificationToken(payload) {
+        const secret = process.env.JWT_SECRET;
+        return jwt.sign(
+            payload,
+            secret,
+            {
+                expiresIn: '10m', // 10分钟过期
+                issuer: 'gift-shop-api'
+            }
+        );
+    }
+    
+    // 验证验证码令牌
+    static verifyVerificationToken(token) {
+        const secret = process.env.JWT_SECRET;
+        return jwt.verify(token, secret);
     }
 }
 

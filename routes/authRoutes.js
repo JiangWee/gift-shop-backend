@@ -3,7 +3,10 @@ const authController = require('../controllers/authController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { 
     validateRegistration, 
-    validateLogin, 
+    validateLogin,
+    validateForgotPassword,
+    validateVerifyCode,
+    validateResetPassword,
     handleValidationErrors 
 } = require('../middleware/validationMiddleware');
 
@@ -40,5 +43,24 @@ router.get('/test', (req, res) => {
         environment: process.env.NODE_ENV || 'development'
     });
 });
+
+// 忘记密码流程
+router.post('/forgot-password/send-code',
+    validateForgotPassword,
+    handleValidationErrors,
+    authController.sendVerificationCode
+);
+
+router.post('/forgot-password/verify-code',
+    validateVerifyCode,
+    handleValidationErrors,
+    authController.verifyCode
+);
+
+router.post('/forgot-password/reset',
+    validateResetPassword,
+    handleValidationErrors,
+    authController.resetPassword
+);
 
 module.exports = router;

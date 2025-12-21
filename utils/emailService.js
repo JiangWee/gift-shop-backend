@@ -1,3 +1,4 @@
+// utils/emailService.js - 添加验证码邮件方法
 const nodemailer = require('nodemailer');
 
 class EmailService {
@@ -5,7 +6,7 @@ class EmailService {
         this.transporter = null;
         this.init();
     }
-
+    
     init() {
         try {
             // 使用Gmail SMTP（推荐）
@@ -159,6 +160,73 @@ class EmailService {
                 <hr>
                 <p style="color: #666; font-size: 12px;">
                     如果您没有请求重置密码，请忽略此邮件。
+                </p>
+            </div>
+        `;
+
+        return await this.sendEmail(user.email, subject, html);
+    }
+    
+    // 发送验证码邮件
+    async sendVerificationCodeEmail(user, verificationCode) {
+        const subject = '密码重置验证码';
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1890ff;">密码重置验证码</h2>
+                <p>亲爱的 ${user.username || user.email}，</p>
+                <p>您正在尝试重置密码，验证码为：</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <span style="font-size: 32px; font-weight: bold; color: #1890ff; 
+                          letter-spacing: 5px; padding: 10px 20px; 
+                          border: 2px dashed #1890ff; border-radius: 5px;">
+                        ${verificationCode}
+                    </span>
+                </div>
+                
+                <p><strong>有效期：</strong>10分钟</p>
+                <p><strong>安全提示：</strong></p>
+                <ul>
+                    <li>请勿将验证码透露给他人</li>
+                    <li>如非本人操作，请忽略此邮件</li>
+                    <li>验证码尝试次数限制为3次</li>
+                </ul>
+                <hr>
+                <p style="color: #666; font-size: 12px;">
+                    此邮件由系统自动发送，请勿回复。
+                </p>
+            </div>
+        `;
+        
+        const text = `密码重置验证码：${verificationCode}，有效期10分钟。如非本人操作，请忽略。`;
+
+        return await this.sendEmail(user.email, subject, html, text);
+    }
+    
+    // 发送密码重置成功邮件
+    async sendPasswordResetSuccessEmail(user) {
+        const subject = '密码重置成功通知';
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #52c41a;">密码重置成功</h2>
+                <p>亲爱的 ${user.username || user.email}，</p>
+                <p>您的账号密码已成功重置。</p>
+                
+                <div style="background: #f6ffed; border: 1px solid #b7eb8f; 
+                      padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p>✅ 密码重置操作已完成</p>
+                    <p>🕒 操作时间：${new Date().toLocaleString('zh-CN')}</p>
+                </div>
+                
+                <p><strong>安全提示：</strong></p>
+                <ul>
+                    <li>请使用新密码登录您的账户</li>
+                    <li>建议定期更换密码以保证账户安全</li>
+                    <li>如非本人操作，请立即联系客服</li>
+                </ul>
+                <hr>
+                <p style="color: #666; font-size: 12px;">
+                    此邮件由系统自动发送，请勿回复。
                 </p>
             </div>
         `;

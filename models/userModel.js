@@ -64,6 +64,22 @@ class UserModel {
             [id]
         );
     }
+
+        // 更新用户密码
+    async updatePassword(userId, newPasswordHash) {
+        const query = 'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?';
+        const [result] = await pool.execute(query, [newPasswordHash, userId]);
+        return result;
+    }
+    
+    // 根据邮箱查找用户（包含密码字段）
+    async findByEmailWithPassword(email) {
+        const [rows] = await pool.execute(
+            'SELECT * FROM users WHERE email = ? AND status = "active"', 
+            [email]
+        );
+        return rows[0];
+    }
 }
 
 module.exports = new UserModel();

@@ -7,7 +7,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test:db": "node scripts/test-mysql.js",
-    "test:auth": "node scripts/test-auth.js", 
+    "test:auth": "node scripts/test-auth.js",
     "test:api": "node scripts/test-api.js",
     "test:config": "node scripts/validate-config.js",
     "validate": "npm run test:config && npm run test:db",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@vercel/node": "^2.0.0",
-    "nodemon": "^2.0.20"
+    "nodemon": "^3.1.11"
   },
   "engines": {
     "node": ">=18.x"

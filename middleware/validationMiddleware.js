@@ -89,9 +89,49 @@ const handleValidationErrors = (req, res, next) => {
     next();
 };
 
+
+
+// 忘记密码验证规则
+const validateForgotPassword = [
+    body('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('请输入有效的邮箱地址')
+];
+
+const validateVerifyCode = [
+    body('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('请输入有效的邮箱地址'),
+    
+    body('code')
+        .isLength({ min: 6, max: 6 })
+        .withMessage('验证码必须是6位数字')
+        .isNumeric()
+        .withMessage('验证码必须是数字')
+];
+
+const validateResetPassword = [
+    body('resetToken')
+        .notEmpty()
+        .withMessage('重置令牌不能为空'),
+    
+    body('newPassword')
+        .isLength({ min: 6 })
+        .withMessage('密码长度至少6位')
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+        .withMessage('密码必须包含大小写字母和数字')
+];
+
+
+
 module.exports = {
     validateRegistration,
     validateLogin,
     validateOrder,
-    handleValidationErrors
+    handleValidationErrors,
+    validateForgotPassword,
+    validateVerifyCode,
+    validateResetPassword
 };
