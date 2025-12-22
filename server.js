@@ -1,4 +1,23 @@
-// server.js - 关键修改
+// server.js
+const { testConnection } = require('./config/database');
+
+// 在启动服务器前测试数据库连接
+const initializeApp = async () => {
+    console.log('🔍 开始初始化应用...');
+    
+    // 测试数据库连接
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+        console.error('❌❌ 应用启动失败：数据库连接异常');
+        process.exit(1);
+    }
+    
+    console.log('✅ 数据库连接测试完成，启动服务器...');
+    
+};
+
+initializeApp();
+
 require('dotenv').config();
 const express = require('express');
 const app = express();

@@ -2,7 +2,10 @@ const mysql = require('mysql2/promise');
 
 // 解析数据库URL（适用于PlanetScale、Railway等）
 function parseDatabaseUrl() {
-
+    console.log('process.env.DB_HOST:',process.env.DB_HOST);
+    console.log('process.env.DB_USER:',process.env.DB_USER);
+    console.log('process.env.DB_NAME:',process.env.DB_NAME);
+    console.log('process.env.DB_PORT:',process.env.DB_PORT);
     return {
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
