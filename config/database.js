@@ -2,19 +2,7 @@ const mysql = require('mysql2/promise');
 
 // 解析数据库URL（适用于PlanetScale、Railway等）
 function parseDatabaseUrl() {
-    if (process.env.DATABASE_URL) {
-        const url = new URL(process.env.DATABASE_URL);
-        return {
-            host: url.hostname,
-            port: url.port || 3306,
-            user: url.username,
-            password: url.password,
-            database: url.pathname.replace('/', ''),
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
-        };
-    }
-    
-    // 备用本地配置
+
     return {
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
