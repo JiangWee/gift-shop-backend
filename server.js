@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
-const emailService = require('./utils/emailService');
+const mixedEmailService = require('./utils/MixedEmailService');
 
 // 在启动服务器前测试数据库连接
 const initializeApp = async () => {
@@ -18,7 +18,7 @@ const initializeApp = async () => {
     console.log('✅ 数据库连接测试完成，启动服务器...');
     
     // 初始化邮件服务
-    await emailService.initialize();
+    await mixedEmailService.initialize();
 };
 
 initializeApp();
@@ -49,7 +49,7 @@ app.use(cors({
 app.get('/test-email', async (req, res) => {
     try {
         await emailService.sendEmail(
-            'test@example.com',
+            '410294170@qq.com',
             '测试邮件',
             '<h1>这是一封测试邮件</h1><p>如果收到，说明配置正确。</p>'
         );
