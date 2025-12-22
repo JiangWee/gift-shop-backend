@@ -4,78 +4,213 @@ const nodemailer = require('nodemailer');
 class EmailService {
     constructor() {
         this.transporter = null;
-        this.init();
+        this.isInitialized = false;
+        this.maxRetries = 3; // 发送邮件最大重试次数
+        this.retryDelay = 2000; // 重试延迟(毫秒)
     }
-    
-    init() {
-        try {
-            if (process.env.EMAIL_SERVICE === 'gmail') {
-                this.transporter = nodemailer.createTransport({
-                    service: 'gmail',
-                    // 使用587端口替代465，更可靠
-                    port: 587,
-                    secure: false, // 587端口使用TLS，不是SSL
-                    auth: {
-                        user: process.env.EMAIL_USER,
-                        pass: process.env.EMAIL_PASSWORD,
-                    },
-                    // 增加超时设置
-                    connectionTimeout: 10000, // 10秒连接超时
-                    greetingTimeout: 10000,   // 10秒问候超时
-                    socketTimeout: 10000,     // 10秒socket超时
-                });
-            }
-            // 使用Ethereal邮箱（测试用）
-            else {
-                console.warn('⚠️ 使用测试邮箱服务，生产环境请配置真实邮箱');
-                this.createTestAccount();
-            }
 
+    /**
+     * 初始化邮件服务
+     */
+    async initialize() {
+        if (this.isInitialized) {
+            console.log('✅ 邮件服务已初始化');
+            return;
+        }
+
+        try {
+            console.log('🔄 开始初始化邮件服务...');
+            
+            // 验证必要的环境变量
+            this.validateEmailConfig();
+            
+            if (process.env.EMAIL_SERVICE === 'gmail') {
+                await this.initializeGmail();
+            } else {
+                await this.initializeTestAccount();
+            }
+            
+            this.isInitialized = true;
             console.log('✅ 邮件服务初始化完成');
+            
         } catch (error) {
-            console.error('❌ 邮件服务初始化失败:', error);
+            console.error('❌ 邮件服务初始化失败:', error.message);
+            // 即使初始化失败，也设置一个基础的transport避免应用崩溃
+            await this.initializeFallback();
+            throw error;
         }
     }
 
-    async createTestAccount() {
-        const testAccount = await nodemailer.createTestAccount();
+    /**
+     * 验证邮件配置
+     */
+    validateEmailConfig() {
+        const required = ['EMAIL_USER', 'EMAIL_PASSWORD'];
+        const missing = required.filter(key => !process.env[key]);
+        
+        if (missing.length > 0) {
+            throw new Error(`缺少必要的环境变量: ${missing.join(', ')}`);
+        }
+
+        console.log('🔍 环境变量检查:');
+        console.log('   EMAIL_USER:', process.env.EMAIL_USER ? '已设置' : '未设置');
+        console.log('   EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '已设置' : '未设置');
+        console.log('   EMAIL_SERVICE:', process.env.EMAIL_SERVICE || '未设置(将使用测试账户)');
+    }
+
+    /**
+     * 初始化Gmail配置
+     */
+    async initializeGmail() {
+        console.log('📧 配置Gmail SMTP...');
+        
         this.transporter = nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 587, // 推荐使用587端口(TLS)
+            secure: false, // 587端口使用STARTTLS，secure应为false
+            requireTLS: true, // 要求使用TLS
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD, // 应该是应用专用密码
+            },
+            connectionTimeout: 15000, // 15秒连接超时
+            greetingTimeout: 10000,   // 10秒问候超时
+            socketTimeout: 30000,     // 30秒socket超时
+            logger: true, // 启用详细日志
+            debug: process.env.NODE_ENV === 'development', // 开发环境开启调试
+        });
+
+        // 验证连接配置
+        await this.verifyConnection();
+    }
+
+    /**
+     * 初始化测试账户(Ethereal Email)
+     */
+    async initializeTestAccount() {
+        console.log('🧪 创建测试邮箱账户...');
+        
+        try {
+            // 使用Ethereal Email进行测试
+            const testAccount = await nodemailer.createTestAccount();
+            
+            this.transporter = nodemailer.createTransport({
+                host: 'smtp.ethereal.email',
+                port: 587,
+                secure: false,
+                auth: {
+                    user: testAccount.user,
+                    pass: testAccount.pass,
+                },
+            });
+
+            console.log('📧 测试邮箱账户信息:');
+            console.log('   用户名:', testAccount.user);
+            console.log('   密码:', testAccount.pass);
+            console.log('   Web界面: https://ethereal.email/');
+
+        } catch (error) {
+            console.error('❌ 创建测试账户失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 备用初始化方案
+     */
+    async initializeFallback() {
+        console.log('🛡️ 使用备用邮件配置...');
+        
+        this.transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
             port: 587,
             secure: false,
             auth: {
-                user: testAccount.user,
-                pass: testAccount.pass,
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD,
             },
+            connectionTimeout: 10000,
         });
-        console.log('📧 测试邮箱账户:', testAccount.user);
     }
 
-    async sendEmail(to, subject, html, text = '') {
+    /**
+     * 验证SMTP连接
+     */
+    async verifyConnection() {
+        try {
+            console.log('🔍 验证SMTP服务器连接...');
+            await this.transporter.verify();
+            console.log('✅ SMTP服务器连接验证成功');
+        } catch (error) {
+            console.error('❌ SMTP服务器连接验证失败:', error.message);
+            throw new Error(`SMTP连接失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 发送邮件（带重试机制）
+     */
+    async sendEmail(to, subject, html, text = '', retries = this.maxRetries) {
+        // 确保服务已初始化
+        if (!this.isInitialized) {
+            await this.initialize();
+        }
+
         if (!this.transporter) {
-            throw new Error('邮件服务未配置');
+            throw new Error('邮件服务未正确配置');
+        }
+
+        const mailOptions = {
+            from: process.env.EMAIL_FROM || `"礼品商城" <${process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            text: text || this.htmlToText(html), // 如果没有提供纯文本，从HTML转换
+            html,
+            // 添加重要邮件头
+            headers: {
+                'X-Priority': '1',
+                'X-Mailer': 'NodeMailer 1.0',
+            }
+        };
+
+        // 调试信息
+        if (process.env.NODE_ENV === 'development') {
+            console.log('📤 发送邮件详情:', {
+                to,
+                subject,
+                hasHtml: !!html,
+                retriesLeft: retries
+            });
         }
 
         try {
-            const mailOptions = {
-                from: process.env.EMAIL_FROM || '"礼品电商" <noreply@giftshop.com>',
-                to,
-                subject,
-                text,
-                html,
-            };
-
             const info = await this.transporter.sendMail(mailOptions);
             
-            if (process.env.NODE_ENV === 'development') {
-                console.log('📧 邮件发送预览:', nodemailer.getTestMessageUrl(info));
+            // 开发环境下显示测试信息
+            if (process.env.NODE_ENV === 'development' && !process.env.EMAIL_SERVICE) {
+                console.log('📧 测试邮件已发送:');
+                console.log('   预览URL:', nodemailer.getTestMessageUrl(info));
+                console.log('   消息ID:', info.messageId);
             }
-            
-            console.log('✅ 邮件发送成功:', info.messageId);
+
+            console.log(`✅ 邮件发送成功: ${subject} -> ${to}`);
             return info;
+
         } catch (error) {
-            console.error('❌ 邮件发送失败:', error);
-            throw error;
+            console.error(`❌ 邮件发送失败 (${retries}次重试剩余):`, error.message);
+
+            if (retries > 0) {
+                console.log(`🔄 ${this.retryDelay/1000}秒后重试...`);
+                await this.delay(this.retryDelay);
+                return this.sendEmail(to, subject, html, text, retries - 1);
+            }
+
+            // 最终失败，抛出详细错误
+            const enhancedError = new Error(`邮件发送失败: ${error.message}`);
+            enhancedError.originalError = error;
+            enhancedError.mailOptions = { to, subject };
+            throw enhancedError;
         }
     }
 
@@ -227,6 +362,48 @@ class EmailService {
 
         return await this.sendEmail(user.email, subject, html);
     }
+
+    /**
+     * 工具函数：HTML转纯文本
+     */
+    htmlToText(html) {
+        return html
+            .replace(/<[^>]*>/g, '') // 移除HTML标签
+            .replace(/\s+/g, ' ')     // 合并空白字符
+            .trim();
+    }
+
+    /**
+     * 工具函数：延迟执行
+     */
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * 获取服务状态（用于健康检查）
+     */
+    getStatus() {
+        return {
+            initialized: this.isInitialized,
+            hasTransporter: !!this.transporter,
+            timestamp: new Date().toISOString()
+        };
+    }
 }
 
-module.exports = new EmailService();
+// 创建单例实例
+const emailService = new EmailService();
+
+// 添加全局错误处理
+process.on('unhandledRejection', (error) => {
+    if (error.originalError && error.mailOptions) {
+        console.error('💥 未处理的邮件发送错误:', {
+            to: error.mailOptions.to,
+            subject: error.mailOptions.subject,
+            error: error.originalError.message
+        });
+    }
+});
+
+module.exports = emailService;

@@ -1,5 +1,6 @@
 // server.js
 const { testConnection } = require('./config/database');
+const emailService = require('./utils/emailService');
 
 // 在启动服务器前测试数据库连接
 const initializeApp = async () => {
@@ -14,9 +15,25 @@ const initializeApp = async () => {
     
     console.log('✅ 数据库连接测试完成，启动服务器...');
     
+    // 初始化邮件服务
+    await emailService.initialize();
 };
 
 initializeApp();
+
+// 在 server.js 中添加（测试完成后移除）
+app.get('/test-email', async (req, res) => {
+    try {
+        await emailService.sendEmail(
+            'test@example.com',
+            '测试邮件',
+            '<h1>这是一封测试邮件</h1><p>如果收到，说明配置正确。</p>'
+        );
+        res.json({ success: true, message: '测试邮件发送成功' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 require('dotenv').config();
 const express = require('express');
