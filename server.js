@@ -46,20 +46,6 @@ app.use(cors({
   credentials: true
 }));
 
-// 在 server.js 中添加（测试完成后移除）
-app.get('/test-email', async (req, res) => {
-    try {
-        await emailService.sendEmail(
-            '410294170@qq.com',
-            '测试邮件',
-            '<h1>这是一封测试邮件</h1><p>如果收到，说明配置正确。</p>'
-        );
-        res.json({ success: true, message: '测试邮件发送成功' });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
 // 中间件配置
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
