@@ -1,7 +1,7 @@
 const userModel = require('../models/userModel');
 const authUtils = require('../utils/authUtils');
 const verificationService = require('../services/verificationService');
-const mixedEmailService = require('../utils/MixedEmailService');
+const resendEmailService = require('../utils/resendEmailService');
 
 class AuthController {
     // 用户注册
@@ -316,7 +316,7 @@ class AuthController {
             
             // 发送邮件
             try {
-                await mixedEmailService.sendVerificationCodeEmail(user, verificationCode);
+                await resendEmailService.sendVerificationCodeEmail(user, verificationCode);
                 
                 res.json({
                     success: true,
@@ -471,7 +471,7 @@ class AuthController {
             
             // 发送密码重置成功邮件
             try {
-                await mixedEmailService.sendPasswordResetSuccessEmail(user);
+                await resendEmailService.sendPasswordResetSuccessEmail(user);
             } catch (emailError) {
                 console.error('密码重置成功邮件发送失败:', emailError);
                 // 不阻断主要流程

@@ -1,8 +1,9 @@
 // server.js
 require('dotenv').config();
 
+
 const { testConnection } = require('./config/database');
-const mixedEmailService = require('./utils/MixedEmailService');
+const resendEmailService = require('./utils/resendEmailService');
 
 // 在启动服务器前测试数据库连接
 const initializeApp = async () => {
@@ -18,7 +19,7 @@ const initializeApp = async () => {
     console.log('✅ 数据库连接测试完成，启动服务器...');
     
     // 初始化邮件服务
-    await mixedEmailService.initialize();
+    await resendEmailService.initialize();
 };
 
 initializeApp();

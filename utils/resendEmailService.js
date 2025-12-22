@@ -1,121 +1,80 @@
-const nodemailer = require('nodemailer');
+// utils/resendEmailService.js
+const { Resend } = require('resend');
 
-class MixedEmailService {
+// 初始化 Resend 客户端，API Key 从环境变量获取
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+class ResendEmailService {
     constructor() {
-        // 国内邮箱域名列表，用于识别并路由至阿里云
-        this.domesticDomains = new Set([
-            'qq.com', '163.com', '126.com', 'sina.com', 'sohu.com',
-            '139.com', '189.cn', 'aliyun.com', 'foxmail.com'
-        ]);
-        
-        // 初始化发送器（在实际发送时根据路由选择配置）
-        this.trasporters = {
-            'aliyun': null,
-            'sendgrid': null
-        };
         this.initialized = false;
     }
 
-    // 初始化邮件服务
     async initialize() {
         if (this.initialized) return;
-        
-        try {
-            // 初始化阿里云邮件推送 (国内优化)
-            this.trasporters.qq = nodemailer.createTransport({
-                host: 'smtp.qq.com',
-                port: 465, // 或 80, 25, 587
-                secure: true, // 465端口需要secure=true
-                auth: {
-                    user: process.env.QQ_EMAIL,
-                    pass: process.env.QQ_EMAIL_PASSWORD
-                }
-            });
-
-            // // 初始化SendGrid (国际优化)
-            // this.trasporters.sendgrid = nodemailer.createTransport({
-            //     host: 'smtp.sendgrid.net',
-            //     port: 587,
-            //     secure: false, // 587端口使用STARTTLS
-            //     auth: {
-            //         user: 'apikey', // SendGrid固定用户名
-            //         pass: process.env.SENDGRID_API_KEY // 您的SendGrid API Key
-            //     }
-            // });
-
-            // 测试连接
-            await Promise.all([
-                // this.trasporters.aliyun.verify(),
-                this.trasporters.qq.verify()
-            ]);
-
-            this.initialized = true;
-            console.log('✅ 混合邮件服务初始化完成');
-        } catch (error) {
-            console.error('❌ 混合邮件服务初始化失败:', error);
-            throw error;
+        // 简单的初始化检查，实际连接测试在发送时进行
+        if (!process.env.RESEND_API_KEY) {
+            throw new Error('RESEND_API_KEY 环境变量未设置。请从 Resend 后台获取。');
         }
+        this.initialized = true;
+        console.log('✅ Resend 邮件服务初始化完成');
     }
 
-    // 1. 判断邮件路由策略
-    async  determineEmailRoute(emailAddress) {
-        const domesticEmailDomains = ['qq.com', '163.com', '126.com', 'sina.com', 'sohu.com', '139.com', '189.cn', 'aliyun.com', 'foxmail.com'];
-        const userDomain = emailAddress.split('@')[1].toLowerCase();
-        
-        // TODO: 实现国外版本
-        // if (domesticEmailDomains.includes(userDomain)) {
-            return 'qq_smtp'; // 国内邮箱走QQ
-        // } 
+    /**
+     * 发送邮件核心方法
+     */
+    async sendEmail(to, subject, html, text = '') {
+        if (!this.initialized) await this.initialize();
 
-        // else 
-        // {
-        //     return 'sendgrid'; // 国际邮箱走SendGrid
-        // }
-    }
-
-    // 2. 根据路由选择发信服务
-    async sendEmail(to, subject, content) {
         try {
-            // 使用初始化时创建的transporter，而不是每次都新建
-            if (!this.trasporters.qq) {
-                throw new Error('QQ邮件服务未正确初始化');
-            }
+            console.log(`📤 通过 Resend API 发送邮件 -> ${to}`);
 
-            const mailOptions = {
-                from: process.env.QQ_EMAIL,
+            const { data, error } = await resend.emails.send({
+                // from: 建议使用您在 Resend 验证过的域名邮箱，例如：newsletter@yourdomain.com
+                // 测试阶段可暂时使用 Resend 提供的测试域名
+                from: 'onboarding@resend.dev', 
                 to: to,
                 subject: subject,
-                html: content
-            };
+                html: html,
+                text: text, // 纯文本版本，可选
+            });
 
-            console.log(`📤 准备发送邮件: ${subject} -> ${to}`);
-            const info = await this.trasporters.qq.sendMail(mailOptions);
-            console.log(`✅ 邮件发送成功: ${info.messageId}`);
-            return info;
-            
+            if (error) {
+                console.error('❌ Resend API 返回错误:', error);
+                throw new Error(`邮件发送失败: ${error.message}`);
+            }
+
+            console.log(`✅ 邮件发送成功! 邮件ID: ${data.id}`);
+            return data;
+
         } catch (error) {
-            console.error(`❌ 邮件发送失败:`, error.message);
-            throw error;
-        }
-    }
-    
-    // 失败重试逻辑
-    async retryWithFallback(failedRoute, mailOptions) {
-        const fallbackRoute = failedRoute === 'aliyun' ? 'sendgrid' : 'aliyun';
-        console.log(`🔄 尝试备用路由: ${fallbackRoute}`);
-        
-        try {
-            const fallbackTransporter = this.trasporters[fallbackRoute];
-            const info = await fallbackTransporter.sendMail(mailOptions);
-            console.log(`✅ 备用路由发送成功 [${fallbackRoute}]`);
-            return info;
-        } catch (fallbackError) {
-            console.error(`❌ 所有邮件路由均失败`);
-            throw new Error(`邮件发送失败，已尝试所有路由: ${fallbackError.message}`);
+            console.error('❌ 发送邮件过程中出现异常:', error);
+            throw error; // 将错误抛给上层调用者处理
         }
     }
 
-    
+    /**
+     * 发送验证码邮件
+     */
+    async sendVerificationCodeEmail(userEmail, verificationCode) {
+        const subject = '请验证您的邮箱 - 礼品商城';
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #d4af37;">邮箱验证码</h2>
+                <p>尊敬的客户，</p>
+                <p>您正在进行的操作需要验证邮箱，验证码为：</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <span style="font-size: 32px; font-weight: bold; color: #d4af37; letter-spacing: 8px; padding: 15px 30px; border: 2px dashed #d4af37; border-radius: 8px; background: #fffaf0;">
+                        ${verificationCode}
+                    </span>
+                </div>
+                <p><strong>有效期：</strong>10分钟</p>
+                <p>如非本人操作，请忽略此邮件。</p>
+            </div>
+        `;
+
+        return await this.sendEmail(userEmail, subject, htmlContent);
+    }
+
     // 发送欢迎邮件
     async sendWelcomeEmail(user) {
         const subject = '欢迎加入礼品电商平台！';
@@ -265,27 +224,8 @@ class MixedEmailService {
         return await this.sendEmail(user.email, subject, html);
     }
 
-    // 根据路由获取发件人地址
-    getFromAddress(route) {
-        const addresses = {
-            'aliyun': `"您的品牌" <noreply@您的已验证域名>`, // 需在阿里云配置
-            'sendgrid': `"Your Brand" <noreply@your-verified-domain.com>` // 需在SendGrid配置
-        };
-        return addresses[route] || process.env.DEFAULT_FROM_EMAIL;
-    }
-
-    // 记录发送日志（用于优化路由策略）
-    logDelivery(deliveryInfo) {
-        // 可在此处实现日志存储，用于分析各路由性能
-        console.log('📊 邮件投递记录:', deliveryInfo);
-    }
-
-    // HTML转文本工具函数
-    htmlToText(html) {
-        return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-    }
 }
 
-// 创建单例实例
-const mixedEmailService = new MixedEmailService();
-module.exports = mixedEmailService;
+// 导出单例实例
+const resendEmailService = new ResendEmailService();
+module.exports = resendEmailService;
