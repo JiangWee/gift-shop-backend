@@ -68,16 +68,11 @@ class EmailService {
             service: 'gmail',
             host: 'smtp.gmail.com',
             port: 465, // 推荐使用587端口(TLS)
-            secure: false, // 使用 465 端口时，此项必须为 true
+            secure: true, // 587端口使用STARTTLS，secure应为false
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD, // 应该是应用专用密码
-            },
-            connectionTimeout: 15000, // 15秒连接超时
-            greetingTimeout: 10000,   // 10秒问候超时
-            socketTimeout: 30000,     // 30秒socket超时
-            logger: true, // 启用详细日志
-            debug: process.env.NODE_ENV === 'development', // 开发环境开启调试
+            }
         });
 
         // 验证连接配置

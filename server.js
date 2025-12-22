@@ -1,4 +1,6 @@
 // server.js
+require('dotenv').config();
+
 const { testConnection } = require('./config/database');
 const emailService = require('./utils/emailService');
 
@@ -21,7 +23,7 @@ const initializeApp = async () => {
 
 initializeApp();
 
-require('dotenv').config();
+
 const express = require('express');
 const app = express();
 
