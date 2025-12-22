@@ -67,9 +67,8 @@ class EmailService {
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
             host: 'smtp.gmail.com',
-            port: 587, // 推荐使用587端口(TLS)
-            secure: false, // 587端口使用STARTTLS，secure应为false
-            requireTLS: true, // 要求使用TLS
+            port: 465, // 推荐使用587端口(TLS)
+            secure: false, // 使用 465 端口时，此项必须为 true
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD, // 应该是应用专用密码
