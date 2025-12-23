@@ -9,7 +9,8 @@ class OrderController {
                 product_id, 
                 product_name, 
                 price, 
-                quantity = 1, 
+                quantity = 1,
+                status_front, 
                 buyer_info, 
                 recipient_info, 
                 gift_message, 
@@ -33,7 +34,7 @@ class OrderController {
                 recipientInfo: recipient_info,
                 giftMessage: gift_message || '',
                 deliveryDate: delivery_date || null,
-                status: 'pending'
+                status: status_front
             };
 
             // 保存到数据库
