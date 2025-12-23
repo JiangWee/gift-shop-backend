@@ -10,19 +10,24 @@ class OrderController {
                 product_name, 
                 price, 
                 quantity = 1,
-                status_front, 
+                status_front,  // 这里应该是 "unpaid"
                 buyer_info, 
                 recipient_info, 
                 gift_message, 
                 delivery_date 
             } = req.body;
             
+            console.log('🔍🔍 创建订单接收到的状态:', {
+                status_front: status_front,
+                type: typeof status_front
+            });
+
             const user = req.user;
 
             // 生成订单ID
             const orderId = authUtils.generateOrderId();
 
-            // 准备订单数据
+            // 准备订单数据 - 重点检查这里
             const orderData = {
                 id: orderId,
                 userId: user.userId,
@@ -30,12 +35,14 @@ class OrderController {
                 productName: product_name,
                 price: parseFloat(price),
                 quantity: parseInt(quantity),
-                buyerInfo: buyer_info,
-                recipientInfo: recipient_info,
+                buyerInfo: buyer_info || {},
+                recipientInfo: recipient_info || {},
                 giftMessage: gift_message || '',
                 deliveryDate: delivery_date || null,
-                status: status_front
+                status: status_front  // 这里应该保存 "unpaid"
             };
+
+            console.log('📦📦 准备保存到数据库的订单数据:', orderData);
 
             // 保存到数据库
             await orderModel.create(orderData);
@@ -50,7 +57,7 @@ class OrderController {
             });
 
         } catch (error) {
-            console.error('创建订单错误:', error);
+            console.error('❌❌ 创建订单错误:', error);
             res.status(500).json({
                 success: false,
                 message: '订单创建失败，请稍后重试'
@@ -65,22 +72,30 @@ class OrderController {
             const orders = await orderModel.findByUserId(user.userId);
 
             // 格式化返回数据
-            const formattedOrders = orders.map(order => ({
-                orderId: order.id,
-                userId: order.user_id,
-                productId: order.product_id,
-                productName: order.product_name,
-                price: parseFloat(order.price),
-                quantity: order.quantity,
-                buyerInfo: JSON.parse(order.buyer_info || '{}'),
-                recipientInfo: JSON.parse(order.recipient_info || '{}'),
-                giftMessage: order.gift_message,
-                deliveryDate: order.delivery_date,
-                status: order.status,
-                createdAt: order.created_at,
-                updatedAt: order.updated_at
-            }));
-
+            const formattedOrders = orders.map(order => {
+                // 在这里打印每个订单的 status
+                console.log('📋📋 订单状态:', {
+                    orderId: order.id,
+                    status: order.status,
+                    productName: order.product_name
+                });
+                
+                return {
+                    orderId: order.id,
+                    userId: order.user_id,
+                    productId: order.product_id,
+                    productName: order.product_name,
+                    price: parseFloat(order.price),
+                    quantity: order.quantity,
+                    buyerInfo: JSON.parse(order.buyer_info || '{}'),
+                    recipientInfo: JSON.parse(order.recipient_info || '{}'),
+                    giftMessage: order.gift_message,
+                    deliveryDate: order.delivery_date,
+                    status: order.status,
+                    createdAt: order.created_at,
+                    updatedAt: order.updated_at
+                };
+            });
             res.json({
                 success: true,
                 data: { 

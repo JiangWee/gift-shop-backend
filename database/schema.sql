@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS orders (
     recipient_info JSON COMMENT '收件人信息（JSON格式）',
     gift_message TEXT COMMENT '礼品留言',
     delivery_date DATE COMMENT '送达日期',
-    status ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending' COMMENT '订单状态',
+    status ENUM('unpaid', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled') DEFAULT 'unpaid' COMMENT '订单状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_user_id (user_id),

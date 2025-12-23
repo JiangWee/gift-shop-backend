@@ -8,15 +8,32 @@ class OrderModel {
             buyerInfo, recipientInfo, giftMessage, deliveryDate, status
         } = orderData;
 
+        console.log('🗃️🗃️ 订单模型接收到的状态值:', {
+            status: status,
+            type: typeof status
+        });
+
         const query = `
             INSERT INTO orders (id, user_id, product_id, product_name, price, quantity, 
                                 buyer_info, recipient_info, gift_message, delivery_date, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
+        
         const values = [
-            id, userId, productId, productName, price, quantity,
-            JSON.stringify(buyerInfo), JSON.stringify(recipientInfo), giftMessage, deliveryDate, status
+            id, 
+            userId, 
+            productId, 
+            productName, 
+            price, 
+            quantity,
+            JSON.stringify(buyerInfo), 
+            JSON.stringify(recipientInfo), 
+            giftMessage, 
+            deliveryDate, 
+            status  // 这里应该是 "unpaid"
         ];
+
+        console.log('🗃️🗃️ 准备插入数据库的值:', values);
 
         const [result] = await pool.execute(query, values);
         return result;
