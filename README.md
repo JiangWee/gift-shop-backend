@@ -3,13 +3,9 @@
 用户认证和订单管理使用 MySQL 数据库。
 这其中后端，数据库托管在Railway。
 
-
+------------------------------------------
 本地验证：
-用XAMPP构建数据库（运行apache，mysql），然后运行npm start启动，会看到以下提示：
-
-npm run dev
-
-npm start
+用XAMPP构建数据库（运行apache，mysql），然后运行npm start启动。
 
 PS C:\code\gift-shop-backend> npm start
 
@@ -21,7 +17,7 @@ PS C:\code\gift-shop-backend> npm start
 📊 Environment: production
 🏗️  架构: 用户认证 + 订单管理(MySQL)
 ⏰ 启动时间: 2025-12-18T07:38:59.573Z
-
+-------------------------------------------------------------------
 
 
 后端工作的流程大致如下：
@@ -300,3 +296,6 @@ bash
 ​多用调试工具​ - console.log 是你的好朋友
 ​遇到问题先搜索​ - 大部分问题Stack Overflow都有答案
 ​多做笔记​ - 记录学习过程中的重点和问题
+
+
+测试各种场景​：不仅要测试支付成功，还要充分测试支付失败、网络超时、用户中途关闭页面、重复支付等各种边缘情况，确保系统健壮性

@@ -85,6 +85,48 @@ class OrderModel {
         const [rows] = await pool.execute(query, [orderId, userId]);
         return rows[0].count > 0;
     }
+
+        // 更新支付信息
+    async updatePaymentInfo(orderId, paymentInfo) {
+        const query = `
+            UPDATE orders 
+            SET payment_method = ?, payment_amount = ?, updated_at = NOW() 
+            WHERE id = ?
+        `;
+        const [result] = await pool.execute(query, [
+            paymentInfo.paymentMethod,
+            paymentInfo.paymentAmount,
+            orderId
+        ]);
+        return result;
+    }
+
+    // 更新支付成功信息
+    async updatePaymentSuccess(orderId, paymentData) {
+        const query = `
+            UPDATE orders 
+            SET status = 'paid', 
+                trade_no = ?, 
+                pay_time = ?, 
+                payment_amount = ?, 
+                updated_at = NOW() 
+            WHERE id = ?
+        `;
+        const [result] = await pool.execute(query, [
+            paymentData.tradeNo,
+            paymentData.payTime,
+            paymentData.paymentAmount,
+            orderId
+        ]);
+        return result;
+    }
+
+    // 根据交易号查找订单
+    async findByTradeNo(tradeNo) {
+        const query = 'SELECT * FROM orders WHERE trade_no = ?';
+        const [rows] = await pool.execute(query, [tradeNo]);
+        return rows[0];
+    }
 }
 
 module.exports = new OrderModel();

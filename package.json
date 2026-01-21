@@ -14,6 +14,8 @@
     "deploy:check": "npm run validate && npm run test:api"
   },
   "dependencies": {
+    "@tenpay/wechatpay-js": "^1.0.1",
+    "alipay-sdk": "^4.14.0",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.8.0",
