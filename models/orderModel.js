@@ -105,13 +105,14 @@ class OrderModel {
     async updatePaymentSuccess(orderId, paymentData) {
         const query = `
             UPDATE orders 
-            SET status = 'paid', 
-                trade_no = ?, 
+            SET 
+                transaction_id = ?, 
                 pay_time = ?, 
                 payment_amount = ?, 
                 updated_at = NOW() 
             WHERE id = ?
         `;
+
         const [result] = await pool.execute(query, [
             paymentData.tradeNo,
             paymentData.payTime,
@@ -121,12 +122,42 @@ class OrderModel {
         return result;
     }
 
+    async updatePaymentStatus(orderId, paymentData) {
+        console.log('🔄 更新订单支付状态:', { orderId, paymentData });
+        
+        const query = `
+            UPDATE orders 
+            SET 
+                status = ?, 
+                payment_status = ?, 
+                transaction_id = ?, 
+                payment_amount = ?, 
+                payment_time = ?, 
+                updated_at = NOW() 
+            WHERE id = ?
+        `;
+        
+        const [result] = await pool.execute(query, [
+            paymentData.status || 'paid',           // 订单状态
+            paymentData.payment_status || 'paid',   // 支付状态
+            paymentData.transaction_id || null,     // 交易号 (transaction_id)
+            paymentData.payment_amount || 0,        // 支付金额
+            paymentData.payment_time || null,       // 支付时间 (payment_time)
+            orderId
+        ]);
+        
+        return result;
+    }
+
     // 根据交易号查找订单
     async findByTradeNo(tradeNo) {
         const query = 'SELECT * FROM orders WHERE trade_no = ?';
         const [rows] = await pool.execute(query, [tradeNo]);
         return rows[0];
     }
+
+
+
 }
 
 module.exports = new OrderModel();

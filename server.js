@@ -53,6 +53,7 @@ app.use(express.urlencoded({ extended: true }));
 // 路由引入
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 
 // 健康检查端点（重要！）
 app.get('/api/health', (req, res) => {

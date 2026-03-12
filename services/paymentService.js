@@ -57,7 +57,7 @@ class PaymentService {
         }
     }
 
-    // 处理支付通知
+// 处理支付通知
     async handlePaymentNotify(paymentMethod, notifyData) {
         try {
             let verifyResult;
@@ -78,6 +78,20 @@ class PaymentService {
 
             const { orderId, tradeNo, amount, payTime } = verifyResult.data;
 
+            // --- 新增：幂等性检查 ---
+            const order = await orderModel.findById(orderId);
+            if (!order) {
+                return { success: false, message: '订单不存在' };
+            }
+            if (order.status === 'paid') {
+                console.log(`ℹ️ 订单 ${orderId} 状态已是paid，无需重复处理（幂等）`);
+                return { success: true, message: '订单已支付，无需重复处理' };
+            }
+            if (order.status !== 'unpaid') {
+                return { success: false, message: `订单当前状态为${order.status}，不允许更新为paid` };
+            }
+            // --- 幂等性检查结束 ---
+
             // 更新订单状态
             await orderModel.updateStatus(orderId, 'paid');
             await orderModel.updatePaymentSuccess(orderId, {
@@ -85,8 +99,9 @@ class PaymentService {
                 payTime: payTime,
                 paymentAmount: amount
             });
+            console.log(`✅ 订单 ${orderId} 状态已更新为paid (来自异步通知)`);
 
-            return { success: true, message: '支付成功' };
+            return { success: true, message: '支付成功处理完毕' };
         } catch (error) {
             console.error('❌❌ 处理支付通知失败:', error);
             return { success: false, message: '通知处理失败' };
@@ -133,6 +148,37 @@ class PaymentService {
             return { success: false, message: '退款失败' };
         }
     }
+
+    // 验证支付宝同步回调
+    async verifyAlipaySyncCallback(params) {
+        try {
+            // 这里可以添加签名验证逻辑
+            const { out_trade_no, trade_no, total_amount } = params;
+            
+            if (!out_trade_no) {
+                return { success: false, message: '缺少订单号' };
+            }
+            
+            // 可选：验证订单是否存在
+            const order = await orderModel.findById(out_trade_no);
+            if (!order) {
+                return { success: false, message: '订单不存在' };
+            }
+            
+            return { 
+                success: true, 
+                data: { 
+                    orderId: out_trade_no,
+                    tradeNo: trade_no,
+                    amount: total_amount 
+                }
+            };
+        } catch (error) {
+            console.error('验证同步回调失败:', error);
+            return { success: false, message: '验证失败' };
+        }
+    }
+    
 }
 
 module.exports = new PaymentService();

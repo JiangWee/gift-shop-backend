@@ -1,5 +1,6 @@
 // services/wechatPayService.js
-const { createHash, generateSignature } = require('../utils/cryptoUtils');
+
+const cryptoUtils = require('../utils/cryptoUtils');
 const paymentConfig = require('../config/payment');
 const axios = require('axios');
 
@@ -155,13 +156,13 @@ class WechatPayService {
     getMerchantSign(params) {
         // 微信支付V3签名算法实现
         const message = this.buildSignMessage(params);
-        return createHash('sha256').update(message).digest('hex');
+        return cryptoUtils.createHash('sha256').update(message).digest('hex');
     }
 
     // 验证签名
     verifySignature(body, sign, timestamp, nonce) {
         const message = `${timestamp}\n${nonce}\n${body}\n`;
-        const expectedSign = createHash('sha256').update(message).digest('hex');
+        const expectedSign = cryptoUtils.createHash('sha256').update(message).digest('hex');
         return expectedSign === sign;
     }
 

@@ -8,10 +8,12 @@ const router = express.Router();
 // 需要认证的路由
 router.post('/create', authenticateToken, paymentController.createPayment);
 router.get('/status', authenticateToken, paymentController.queryPaymentStatus);
-router.get('/success', paymentController.paymentSuccess);
+router.get('/success', paymentController.paymentSuccess); // 同步回调
 
 // 支付通知路由（不需要认证）
-router.post('/alipay/notify', express.urlencoded({ extended: false }), paymentController.alipayNotify);
+router.post('/alipay/notify', express.urlencoded({ extended: false }), paymentController.alipayNotify); // 异步通知
 router.post('/wechat/notify', express.json(), paymentController.wechatNotify);
+
+
 
 module.exports = router;

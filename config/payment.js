@@ -7,9 +7,9 @@ class PaymentConfig {
             alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
             gateway: process.env.NODE_ENV === 'production' 
                 ? 'https://openapi.alipay.com/gateway.do'
-                : 'https://openapi.alipaydev.com/gateway.do',
+                : process.env.ALIPAY_GATEWAY,
             notifyUrl: process.env.ALIPAY_NOTIFY_URL || `${process.env.BASE_URL}/api/payment/alipay/notify`,
-            returnUrl: process.env.ALIPAY_RETURN_URL || `${process.env.BASE_URL}/payment/success`
+            returnUrl: process.env.ALIPAY_RETURN_URL || `${process.env.BASE_URL}/api/payment/success`
         };
 
         this.wechatConfig = {

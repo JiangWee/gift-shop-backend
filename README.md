@@ -12,6 +12,9 @@ PS C:\code\gift-shop-backend> npm start
 > gift-shop-hybrid-backend@1.0.0 start
 > node server.js
 
+在本地测试时，需要将本地的地址挂公网，这样支付宝回调才可以访问到。在另一终端执行下面命令来
+npx ngrok http 3000
+
 🚀 礼品电商混合后端服务器启动成功
 🚀 Server running on port 3000
 📊 Environment: production
