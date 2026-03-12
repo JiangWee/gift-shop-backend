@@ -107,7 +107,7 @@ class OrderModel {
             UPDATE orders 
             SET 
                 transaction_id = ?, 
-                pay_time = ?, 
+                payment_time = ?, 
                 payment_amount = ?, 
                 updated_at = NOW() 
             WHERE id = ?
