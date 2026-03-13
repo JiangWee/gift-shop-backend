@@ -1,5 +1,6 @@
 const orderModel = require('../models/orderModel');
 const authUtils = require('../utils/authUtils');
+const resendEmailService = require('../services/resendEmailService');
 
 class OrderController {
     // 创建新订单
@@ -47,6 +48,30 @@ class OrderController {
             // 保存到数据库
             await orderModel.create(orderData);
 
+            // 发送订单确认邮件
+            try {
+                await resendEmailService.sendOrderConfirmationEmail(
+                    { 
+                        email: user.email, 
+                        username: user.username 
+                    }, 
+                    {
+                        orderId: orderId,
+                        productName: orderData.productName,
+                        price: orderData.price,
+                        quantity: orderData.quantity,
+                        status: orderData.status,
+                        buyerInfo: orderData.buyerInfo,
+                        recipientInfo: orderData.recipientInfo,
+                        giftMessage: orderData.giftMessage
+                    }
+                );
+                console.log('✅ 订单确认邮件发送成功');
+            } catch (emailError) {
+                console.error('❌ 订单确认邮件发送失败，但不影响订单创建:', emailError);
+                // 这里不抛出错误，因为邮件发送失败不应该影响订单创建
+                // 可以记录日志或发送到错误监控系统
+            }
             res.status(201).json({
                 success: true,
                 message: '订单创建成功',

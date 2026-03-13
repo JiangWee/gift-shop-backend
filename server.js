@@ -3,7 +3,7 @@ require('dotenv').config();
 
 
 const { testConnection } = require('./config/database');
-const resendEmailService = require('./utils/resendEmailService');
+const resendEmailService = require('./services/resendEmailService');
 
 // 在启动服务器前测试数据库连接
 const initializeApp = async () => {

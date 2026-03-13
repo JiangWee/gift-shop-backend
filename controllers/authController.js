@@ -1,7 +1,7 @@
 const userModel = require('../models/userModel');
 const authUtils = require('../utils/authUtils');
 const verificationService = require('../services/verificationService');
-const resendEmailService = require('../utils/resendEmailService');
+const resendEmailService = require('../services/resendEmailService');
 
 class AuthController {
     // 用户注册
