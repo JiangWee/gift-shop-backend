@@ -115,6 +115,28 @@ class ResendEmailService {
         const buyerInfo = order.buyerInfo || {};
         const recipientInfo = order.recipientInfo || {};
         
+        // 构建收件人地址字符串
+        let recipientAddress = '';
+        if (recipientInfo.street || recipientInfo.city || recipientInfo.state || recipientInfo.zip || recipientInfo.country) {
+            const addressParts = [];
+            if (recipientInfo.street) addressParts.push(recipientInfo.street);
+            if (recipientInfo.city) addressParts.push(recipientInfo.city);
+            if (recipientInfo.state) addressParts.push(recipientInfo.state);
+            if (recipientInfo.zip) addressParts.push(recipientInfo.zip);
+            if (recipientInfo.country) {
+                // 将国家代码转换为中文显示
+                const countryMap = {
+                    'china': '中国',
+                    'usa': '美国',
+                    'uk': '英国',
+                    'germany': '德国',
+                    'japan': '日本'
+                };
+                addressParts.push(countryMap[recipientInfo.country] || recipientInfo.country);
+            }
+            recipientAddress = addressParts.join('，');
+        }
+        
         const html = `
             <div style="font-family: 'Microsoft YaHei', Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
                 <div style="background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -173,7 +195,7 @@ class ResendEmailService {
                         </div>
                     </div>
                     
-                    <!-- 寄件人信息 -->
+                    <!-- 寄件人信息（买家） -->
                     <div style="margin-bottom: 30px;">
                         <h2 style="color: #333; border-left: 4px solid #722ed1; padding-left: 10px;">寄件人信息</h2>
                         <div style="background: #f9f0ff; border: 1px solid #d3adf7; border-radius: 6px; padding: 15px; margin-top: 15px;">
@@ -190,17 +212,6 @@ class ResendEmailService {
                                     <td style="padding: 8px 0;"><strong>邮箱：</strong></td>
                                     <td style="padding: 8px 0;">${user.email}</td>
                                 </tr>
-                                <tr>
-                                    <td style="padding: 8px 0; vertical-align: top;"><strong>地址：</strong></td>
-                                    <td style="padding: 8px 0;">
-                                        ${buyerInfo.address ? buyerInfo.address.replace(/\n/g, '<br>') : '未提供'}
-                                    </td>
-                                </tr>
-                                ${buyerInfo.note ? `
-                                <tr>
-                                    <td style="padding: 8px 0; vertical-align: top;"><strong>备注：</strong></td>
-                                    <td style="padding: 8px 0; color: #666;">${buyerInfo.note}</td>
-                                </tr>` : ''}
                             </table>
                         </div>
                     </div>
@@ -219,25 +230,16 @@ class ResendEmailService {
                                     <td style="padding: 8px 0;">${recipientInfo.phone || '未提供'}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 8px 0;"><strong>邮箱：</strong></td>
-                                    <td style="padding: 8px 0;">${recipientInfo.email || '未提供'}</td>
-                                </tr>
-                                <tr>
                                     <td style="padding: 8px 0; vertical-align: top;"><strong>地址：</strong></td>
                                     <td style="padding: 8px 0;">
-                                        ${recipientInfo.address ? recipientInfo.address.replace(/\n/g, '<br>') : '未提供'}
+                                        ${recipientAddress || '未提供'}
                                     </td>
                                 </tr>
-                                ${recipientInfo.note ? `
-                                <tr>
-                                    <td style="padding: 8px 0; vertical-align: top;"><strong>备注：</strong></td>
-                                    <td style="padding: 8px 0; color: #666;">${recipientInfo.note}</td>
-                                </tr>` : ''}
                             </table>
                         </div>
                     </div>
                     
-                    <!-- 礼品信息 -->
+                    <!-- 贺卡信息 -->
                     ${order.giftMessage ? `
                     <div style="margin-bottom: 30px;">
                         <h2 style="color: #333; border-left: 4px solid #13c2c2; padding-left: 10px;">礼品祝福</h2>
@@ -245,6 +247,10 @@ class ResendEmailService {
                             <p style="font-style: italic; color: #08979c; font-size: 16px; line-height: 1.6; margin: 0;">
                                 "${order.giftMessage}"
                             </p>
+                            ${order.giftMessage.length > 180 ? `
+                            <p style="color: #ff4d4f; font-size: 12px; margin-top: 10px;">
+                                ※ 注意：祝福语超过180字符限制，已截断显示
+                            </p>` : ''}
                         </div>
                     </div>` : ''}
                     
@@ -295,17 +301,13 @@ class ResendEmailService {
             - 姓名：${buyerInfo.name || '未提供'}
             - 电话：${buyerInfo.phone || '未提供'}
             - 邮箱：${user.email}
-            - 地址：${buyerInfo.address || '未提供'}
-            ${buyerInfo.note ? `- 备注：${buyerInfo.note}` : ''}
 
             收件人信息：
             - 姓名：${recipientInfo.name || '未提供'}
             - 电话：${recipientInfo.phone || '未提供'}
-            - 邮箱：${recipientInfo.email || '未提供'}
-            - 地址：${recipientInfo.address || '未提供'}
-            ${recipientInfo.note ? `- 备注：${recipientInfo.note}` : ''}
+            - 地址：${recipientAddress || '未提供'}
 
-            ${order.giftMessage ? `礼品祝福：${order.giftMessage}` : ''}
+            ${order.giftMessage ? `贺卡祝福：${order.giftMessage}` : ''}
 
             ${ccEmails.length > 0 ? `
             订单服务：
@@ -316,7 +318,7 @@ class ResendEmailService {
 
         // 准备邮件参数
         const emailParams = {
-            from: 'orders@giftbuybuy.cn', // 建议替换为您验证过的域名邮箱
+            from: 'orders@giftbuybuy.cn', // 使用您的域名邮箱
             to: user.email,
             subject: subject,
             html: html,
