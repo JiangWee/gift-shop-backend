@@ -1,10 +1,39 @@
 // services/paymentService.js
 const alipayService = require('./alipayService');
 const wechatPayService = require('./wechatPayService');
+const stripeService = require('./stripeService'); // 新增
+const ipService = require('./ipService'); // 新增
 const orderModel = require('../models/orderModel');
 
 class PaymentService {
-    // 创建支付
+    /**
+     * 获取推荐的支付方式
+     */
+    async getRecommendedPaymentMethod(userIp) {
+        try {
+            const recommendation = await ipService.recommendPaymentMethod(userIp);
+            return {
+                success: true,
+                data: recommendation
+            };
+        } catch (error) {
+            console.error('❌ 获取推荐支付方式失败:', error);
+            // 失败时默认返回 Stripe
+            return {
+                success: true,
+                data: {
+                    defaultMethod: 'stripe',
+                    availableMethods: ['stripe'],
+                    location: { countryCode: 'US', country: 'United States', isChina: false }
+                }
+            };
+        }
+    }
+
+    /**
+     * 智能创建支付
+     * 如果 paymentMethod 为 'auto'，则根据 IP 自动选择
+     */
     async createPayment(orderId, paymentMethod, userIp, openid) {
         try {
             // 获取订单信息
@@ -18,24 +47,40 @@ class PaymentService {
             }
 
             const amount = Math.round(order.price * order.quantity * 100); // 转换为分
+            const description = `礼品订单：${order.product_name}`;
 
             const paymentData = {
                 orderId: orderId,
                 amount: amount,
-                description: `礼品订单：${order.product_name}`,
+                description: description,
                 ip: userIp,
                 openid: openid
             };
 
             let result;
-            switch (paymentMethod) {
+            let actualMethod = paymentMethod;
+            
+            // 如果支付方式为 'auto'，则根据 IP 自动选择
+            if (paymentMethod === 'auto') {
+                const recommendation = await this.getRecommendedPaymentMethod(userIp);
+                actualMethod = recommendation.data.defaultMethod;
+                console.log(`🌍 自动选择支付方式: ${actualMethod} (基于 IP: ${userIp})`);
+            }
+
+            switch (actualMethod) {
                 case 'alipay':
                     result = await alipayService.createPayment(paymentData);
                     break;
                 case 'wechat':
                     result = await wechatPayService.createPayment({
                         ...paymentData,
-                        tradeType: 'NATIVE' // 扫码支付
+                        tradeType: 'NATIVE'
+                    });
+                    break;
+                case 'stripe':
+                    result = await stripeService.createPayment({
+                        ...paymentData,
+                        currency: 'usd' // 可根据订单信息动态设置
                     });
                     break;
                 default:
@@ -45,9 +90,12 @@ class PaymentService {
             if (result.success) {
                 // 更新订单支付信息
                 await orderModel.updatePaymentInfo(orderId, {
-                    paymentMethod: paymentMethod,
+                    paymentMethod: actualMethod, // 保存实际使用的支付方式
                     paymentAmount: amount
                 });
+                
+                // 返回结果时带上实际使用的支付方式
+                result.data.paymentMethod = actualMethod;
             }
 
             return result;
@@ -57,8 +105,10 @@ class PaymentService {
         }
     }
 
-// 处理支付通知
-    async handlePaymentNotify(paymentMethod, notifyData) {
+    /**
+     * 处理支付通知
+     */
+    async handlePaymentNotify(paymentMethod, notifyData, request = null) {
         try {
             let verifyResult;
             switch (paymentMethod) {
@@ -68,6 +118,10 @@ class PaymentService {
                 case 'wechat':
                     verifyResult = await wechatPayService.verifyNotify(notifyData);
                     break;
+                case 'stripe':
+                    // Stripe 需要传递完整的 request 对象
+                    verifyResult = await stripeService.verifyNotify(request);
+                    break;
                 default:
                     return { success: false, message: '不支持的支付方式' };
             }
@@ -76,30 +130,56 @@ class PaymentService {
                 return verifyResult;
             }
 
-            const { orderId, tradeNo, amount, payTime } = verifyResult.data;
+            // 根据不同支付方式提取数据
+            let orderId, tradeNo, amount, payTime;
+            
+            if (paymentMethod === 'stripe') {
+                const event = verifyResult.data.event;
+                
+                // 只处理支付成功的事件
+                if (event.type !== 'payment_intent.succeeded') {
+                    return { success: true, message: '非支付成功事件，忽略处理' };
+                }
+                
+                const paymentIntent = event.data.object;
+                orderId = paymentIntent.metadata.orderId;
+                tradeNo = paymentIntent.id;
+                amount = paymentIntent.amount;
+                payTime = new Date(paymentIntent.created * 1000).toISOString();
+                
+                // 调用 Stripe 特定的处理逻辑
+                return await stripeService.handlePaymentSuccess(event);
+            } else {
+                // 支付宝和微信的逻辑保持不变
+                orderId = verifyResult.data.orderId;
+                tradeNo = verifyResult.data.tradeNo;
+                amount = verifyResult.data.amount;
+                payTime = verifyResult.data.payTime;
+            }
 
-            // --- 新增：幂等性检查 ---
-            const order = await orderModel.findById(orderId);
-            if (!order) {
-                return { success: false, message: '订单不存在' };
-            }
-            if (order.status === 'paid') {
-                console.log(`ℹ️ 订单 ${orderId} 状态已是paid，无需重复处理（幂等）`);
-                return { success: true, message: '订单已支付，无需重复处理' };
-            }
-            if (order.status !== 'unpaid') {
-                return { success: false, message: `订单当前状态为${order.status}，不允许更新为paid` };
-            }
-            // --- 幂等性检查结束 ---
+            // 幂等性检查（仅对支付宝和微信，Stripe 在自身方法中处理）
+            if (paymentMethod !== 'stripe') {
+                const order = await orderModel.findById(orderId);
+                if (!order) {
+                    return { success: false, message: '订单不存在' };
+                }
+                if (order.status === 'paid') {
+                    console.log(`ℹ️ 订单 ${orderId} 状态已是paid，无需重复处理（幂等）`);
+                    return { success: true, message: '订单已支付，无需重复处理' };
+                }
+                if (order.status !== 'unpaid') {
+                    return { success: false, message: `订单当前状态为${order.status}，不允许更新为paid` };
+                }
 
-            // 更新订单状态
-            await orderModel.updateStatus(orderId, 'paid');
-            await orderModel.updatePaymentSuccess(orderId, {
-                tradeNo: tradeNo,
-                payTime: payTime,
-                paymentAmount: amount
-            });
-            console.log(`✅ 订单 ${orderId} 状态已更新为paid (来自异步通知)`);
+                // 更新订单状态
+                await orderModel.updateStatus(orderId, 'paid');
+                await orderModel.updatePaymentSuccess(orderId, {
+                    tradeNo: tradeNo,
+                    payTime: payTime,
+                    paymentAmount: amount
+                });
+                console.log(`✅ 订单 ${orderId} 状态已更新为paid (来自异步通知)`);
+            }
 
             return { success: true, message: '支付成功处理完毕' };
         } catch (error) {
@@ -108,8 +188,10 @@ class PaymentService {
         }
     }
 
-    // 查询支付状态
-    async queryPaymentStatus(orderId, paymentMethod) {
+    /**
+     * 查询支付状态
+     */
+    async queryPaymentStatus(orderId, paymentMethod, paymentIntentId = null) {
         try {
             let queryResult;
             switch (paymentMethod) {
@@ -117,8 +199,13 @@ class PaymentService {
                     queryResult = await alipayService.queryOrder(orderId);
                     break;
                 case 'wechat':
-                    // 微信支付查询接口实现
                     queryResult = { success: false, message: '微信支付查询暂未实现' };
+                    break;
+                case 'stripe':
+                    if (!paymentIntentId) {
+                        return { success: false, message: 'Stripe 需要 paymentIntentId' };
+                    }
+                    queryResult = await stripeService.queryPaymentStatus(paymentIntentId);
                     break;
                 default:
                     return { success: false, message: '不支持的支付方式' };
@@ -130,7 +217,7 @@ class PaymentService {
             return { success: false, message: '查询失败' };
         }
     }
-
+    
     // 退款处理
     async refundPayment(orderId, refundAmount, reason) {
         try {

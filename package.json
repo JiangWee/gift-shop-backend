@@ -33,6 +33,7 @@
     "nodemailer": "^7.0.11",
     "resend": "^6.6.0",
     "sharp": "^0.34.5",
+    "stripe": "^20.4.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

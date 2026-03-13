@@ -3,6 +3,57 @@ const paymentService = require('../services/paymentService');
 const orderModel = require('../models/orderModel');
 
 class PaymentController {
+
+    /**
+     * Stripe 异步通知回调
+     * POST /api/payment/stripe/webhook
+     */
+    async stripeWebhook(req, res) {
+        try {
+            console.log('📩 收到 Stripe Webhook 通知');
+            
+            const result = await paymentService.handlePaymentNotify('stripe', req.body, req);
+            
+            if (result.success) {
+                console.log('✅ Stripe Webhook 处理成功:', result.message);
+                res.json({ received: true });
+            } else {
+                console.error('❌ Stripe Webhook 处理失败:', result.message);
+                res.status(400).json({ error: result.message });
+            }
+            
+        } catch (error) {
+            console.error('❌ Stripe Webhook 处理异常:', error);
+            res.status(500).json({ error: 'Webhook 处理失败' });
+        }
+    }
+
+    /**
+     * 获取推荐的支付方式
+     * GET /api/payment/recommend
+     */
+    async getRecommendedPayment(req, res) {
+        try {
+            const userIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+            const result = await paymentService.getRecommendedPaymentMethod(userIp);
+            
+            if (result.success) {
+                res.json({
+                    success: true,
+                    data: result.data
+                });
+            } else {
+                res.status(400).json(result);
+            }
+        } catch (error) {
+            console.error('❌ 获取推荐支付方式失败:', error);
+            res.status(500).json({
+                success: false,
+                message: '获取推荐支付方式失败'
+            });
+        }
+    }
+
     /**
      * 创建支付订单
      * POST /api/payment/create

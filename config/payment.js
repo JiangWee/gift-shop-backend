@@ -18,6 +18,14 @@ class PaymentConfig {
             key: process.env.WECHAT_KEY,
             notifyUrl: process.env.WECHAT_NOTIFY_URL || `${process.env.BASE_URL}/api/payment/wechat/notify`
         };
+        
+        this.stripeConfig = {
+            secretKey: process.env.STRIPE_SECRET_KEY,
+            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ,
+            webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+            currency: process.env.STRIPE_CURRENCY || 'usd'
+        };
+
     }
 
     validateConfig() {
