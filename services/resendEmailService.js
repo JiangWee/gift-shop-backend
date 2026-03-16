@@ -115,6 +115,17 @@ class ResendEmailService {
         const buyerInfo = order.buyerInfo || {};
         const recipientInfo = order.recipientInfo || {};
         
+        // 🔥 修改：根据货币格式化价格显示
+        let priceDisplay = '';
+        let totalDisplay = '';
+        if (order.currency === 'USD') {
+            priceDisplay = `$${parseFloat(order.display_price || order.price).toFixed(2)}`;
+            totalDisplay = `$${(parseFloat(order.display_price || order.price) * order.quantity).toFixed(2)}`;
+        } else {
+            priceDisplay = `¥${parseFloat(order.price).toFixed(2)}`;
+            totalDisplay = `¥${(order.price * order.quantity).toFixed(2)}`;
+        }
+
         // 构建收件人地址字符串
         let recipientAddress = '';
         if (recipientInfo.street || recipientInfo.city || recipientInfo.state || recipientInfo.zip || recipientInfo.country) {
@@ -187,7 +198,7 @@ class ResendEmailService {
                                     <td style="padding: 8px 0; border-top: 1px dashed #ddd; padding-top: 12px;">
                                         <strong style="font-size: 16px;">订单总额：</strong>
                                         <span style="color: #ff4d4f; font-size: 20px; font-weight: bold;">
-                                            ¥${(order.price * order.quantity).toFixed(2)}
+                                            ${totalDisplay} ${order.currency === 'USD' ? '(美元)' : '(人民币)'} <!-- 🔥 修改这里 -->
                                         </span>
                                     </td>
                                 </tr>

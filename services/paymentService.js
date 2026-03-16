@@ -46,8 +46,21 @@ class PaymentService {
                 return { success: false, message: '订单状态不允许支付' };
             }
 
-            const amount = Math.round(order.price * order.quantity * 100); // 转换为分
-            const description = `礼品订单：${order.product_name}`;
+            // 🔥 修改：根据订单货币计算金额
+            let amount = 0;
+            let description = `礼品订单：${order.product_name}`;
+            let currency = 'cny';  // 默认人民币
+            
+            if (order.currency === 'USD' && order.exchange_rate) {
+                // 如果订单货币是美元，使用显示价格
+                amount = Math.round((order.display_price || order.price) * 100); // 转换为分
+                description += ` (美元支付)`;
+                currency = 'usd';
+            } else {
+                // 默认人民币
+                amount = Math.round(order.price * 100); // 转换为分
+                description += ` (人民币支付)`;
+            }
 
             const paymentData = {
                 orderId: orderId,
@@ -80,7 +93,7 @@ class PaymentService {
                 case 'stripe':
                     result = await stripeService.createPayment({
                         ...paymentData,
-                        currency: 'usd' // 可根据订单信息动态设置
+                        currency: currency // 可根据订单信息动态设置
                     });
                     break;
                 default:

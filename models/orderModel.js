@@ -5,18 +5,24 @@ class OrderModel {
     async create(orderData) {
         const {
             id, userId, productId, productName, price, quantity,
-            buyerInfo, recipientInfo, giftMessage, deliveryDate, status
+            buyerInfo, recipientInfo, giftMessage, deliveryDate, status,
+            currency, display_price, exchange_rate  // 🔥 新增这3个字段
         } = orderData;
 
         console.log('🗃️🗃️ 订单模型接收到的状态值:', {
             status: status,
-            type: typeof status
+            type: typeof status,
+            currency: currency,  // 🔥 新增日志
+            display_price: display_price,
+            exchange_rate: exchange_rate
         });
 
         const query = `
             INSERT INTO orders (id, user_id, product_id, product_name, price, quantity, 
-                                buyer_info, recipient_info, gift_message, delivery_date, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                buyer_info, recipient_info, gift_message, delivery_date, status,
+                                currency, display_price, exchange_rate
+                                )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const values = [
@@ -30,7 +36,10 @@ class OrderModel {
             JSON.stringify(recipientInfo), 
             giftMessage, 
             deliveryDate, 
-            status  // 这里应该是 "unpaid"
+            status, // 这里应该是 "unpaid"
+            currency || 'CNY',  // 🔥 默认为CNY
+            display_price || price,  // 🔥 默认为原价
+            exchange_rate || 1.0  // 🔥 默认为1.0 
         ];
 
         console.log('🗃️🗃️ 准备插入数据库的值:', values);

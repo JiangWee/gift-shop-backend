@@ -9,7 +9,10 @@ class OrderController {
             const { 
                 product_id, 
                 product_name, 
-                price, 
+                price, // 原始人民币价格
+                currency, // 新增：货币代码
+                display_price, // 新增：显示价格
+                exchange_rate, // 新增：汇率
                 quantity = 1,
                 status_front,  // 这里应该是 "unpaid"
                 buyer_info, 
@@ -25,6 +28,9 @@ class OrderController {
 
             const user = req.user;
 
+            const originalPriceCNY = price; // 人民币原价
+            const displayPrice = display_price || price; // 显示价格
+
             // 生成订单ID
             const orderId = authUtils.generateOrderId();
 
@@ -35,6 +41,9 @@ class OrderController {
                 productId: product_id,
                 productName: product_name,
                 price: parseFloat(price),
+                currency: currency,
+                exchange_rate: exchange_rate,
+                display_price: displayPrice,
                 quantity: parseInt(quantity),
                 buyerInfo: buyer_info || {},
                 recipientInfo: recipient_info || {},
@@ -59,6 +68,7 @@ class OrderController {
                         orderId: orderId,
                         productName: orderData.productName,
                         price: orderData.price,
+                        currency: order.currency,
                         quantity: orderData.quantity,
                         status: orderData.status,
                         buyerInfo: orderData.buyerInfo,
@@ -102,7 +112,10 @@ class OrderController {
                 console.log('📋📋 订单状态:', {
                     orderId: order.id,
                     status: order.status,
-                    productName: order.product_name
+                    productName: order.product_name,
+                    currency: order.currency,  // 🔥 新增日志
+                    display_price: order.display_price,
+                    exchange_rate: order.exchange_rate
                 });
                 
                 return {
@@ -111,6 +124,9 @@ class OrderController {
                     productId: order.product_id,
                     productName: order.product_name,
                     price: parseFloat(order.price),
+                    currency: order.currency || 'CNY',  // 🔥 新增
+                    displayPrice: parseFloat(order.display_price) || parseFloat(order.price),  // 🔥 新增
+                    exchangeRate: parseFloat(order.exchange_rate) || 1.0,  // 🔥 新增
                     quantity: order.quantity,
                     buyerInfo: JSON.parse(order.buyer_info || '{}'),
                     recipientInfo: JSON.parse(order.recipient_info || '{}'),
@@ -169,6 +185,9 @@ class OrderController {
                 productId: order.product_id,
                 productName: order.product_name,
                 price: parseFloat(order.price),
+                currency: order.currency || 'CNY',  // 🔥 新增
+                displayPrice: parseFloat(order.display_price) || parseFloat(order.price),  // 🔥 新增
+                exchangeRate: parseFloat(order.exchange_rate) || 1.0,  // 🔥 新增
                 quantity: order.quantity,
                 buyerInfo: JSON.parse(order.buyer_info || '{}'),
                 recipientInfo: JSON.parse(order.recipient_info || '{}'),
