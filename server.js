@@ -46,6 +46,30 @@ app.use(cors({
   credentials: true
 }));
 
+// 健康检查
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/payment/stripe/webhook', 
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error('❌ Webhook 签名验证失败:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    
+    console.log(`✅ Webhook 验证成功: ${event.type}`);
+    res.json({ received: true });
+  }
+);
+
 // 中间件配置
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -55,14 +79,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 
-// 健康检查端点（重要！）
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
+
 
 // 错误处理中间件
 app.use((error, req, res, next) => {
