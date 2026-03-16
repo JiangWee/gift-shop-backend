@@ -34,7 +34,22 @@ class PaymentController {
      */
     async getRecommendedPayment(req, res) {
         try {
-            const userIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+            // 优先使用前端传递的IP参数
+            const userIpFromQuery = req.query.ip;
+            // 备用：尝试从headers获取
+            const xForwardedFor = req.headers['x-forwarded-for'];
+            const userIpFromHeader = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.ip;
+            
+            // 使用优先级：query参数 > x-forwarded-for > req.ip
+            const userIp = userIpFromQuery || userIpFromHeader;
+            
+            console.log('🌍 后端获取的IP:', { 
+                fromQuery: userIpFromQuery,
+                fromHeader: xForwardedFor,
+                fromReqIp: req.ip,
+                finalIp: userIp
+            });
+            
             const result = await paymentService.getRecommendedPaymentMethod(userIp);
             
             if (result.success) {
