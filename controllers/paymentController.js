@@ -119,6 +119,60 @@ class PaymentController {
     }
     
     /**
+     * 获取 Stripe 前端配置（返回 publishableKey）
+     * GET /api/payment/stripe/config
+     */
+    async getStripeConfig(req, res) {
+        try {
+            // 可选：验证请求来源
+            const origin = req.headers.origin || req.headers.referer;
+            const allowedOrigins = [
+                'https://www.giftbuybuy.cn',
+                'https://www.giftbuybuy.com',
+                'https://giftbuybuy.vercel.app',
+                'http://localhost:3000'
+            ];
+            
+            // 如果请求来源不在白名单，可记录日志但不拦截（前端需要此信息）
+            if (origin && !allowedOrigins.some(allowed => origin.includes(allowed))) {
+                console.warn('⚠️ 非常见来源请求Stripe配置:', origin);
+            }
+            
+            const paymentConfig = require('../config/payment');
+            const stripeConfig = paymentConfig.stripeConfig;
+            
+            const publishableKey = stripeConfig.publishableKey;
+            
+            if (!publishableKey) {
+                console.error('❌ STRIPE_PUBLISHABLE_KEY 未配置');
+                return res.status(500).json({
+                    success: false,
+                    message: '支付服务配置错误'
+                });
+            }
+            
+            res.json({
+                success: true,
+                publishableKey: publishableKey,
+                // 可选：返回支持的货币
+                supportedCurrencies: ['usd', 'cny'],
+                // 可选：返回最低支付金额（分）
+                minAmount: {
+                    usd: 50,    // $0.50
+                    cny: 50     // ¥0.50
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ 获取 Stripe 配置失败:', error);
+            res.status(500).json({
+                success: false,
+                message: '获取支付配置失败'
+            });
+        }
+    }
+
+    /**
      * 查询支付状态
      * GET /api/payment/status?orderId=xxx&paymentMethod=alipay
      */
