@@ -34,37 +34,23 @@ class PaymentController {
      */
     async getRecommendedPayment(req, res) {
         try {
-            // 优先使用前端传递的IP参数
-            const userIpFromQuery = req.query.ip;
-            // 备用：尝试从headers获取
-            const xForwardedFor = req.headers['x-forwarded-for'];
-            const userIpFromHeader = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.ip;
-            
-            // 使用优先级：query参数 > x-forwarded-for > req.ip
-            const userIp = userIpFromQuery || userIpFromHeader;
-            
-            console.log('🌍 后端获取的IP:', { 
-                fromQuery: userIpFromQuery,
-                fromHeader: xForwardedFor,
-                fromReqIp: req.ip,
-                finalIp: userIp
+            // 直接返回所有支付方式，不进行IP查询
+            res.json({
+                success: true,
+                data: {
+                    defaultMethod: null, // 不设置默认
+                    availableMethods: ['alipay', 'wechat', 'stripe'],
+                    location: {
+                        detectionMethod: 'manual',
+                        message: '用户手动选择支付方式'
+                    }
+                }
             });
-            
-            const result = await paymentService.getRecommendedPaymentMethod(userIp);
-            
-            if (result.success) {
-                res.json({
-                    success: true,
-                    data: result.data
-                });
-            } else {
-                res.status(400).json(result);
-            }
         } catch (error) {
-            console.error('❌ 获取推荐支付方式失败:', error);
+            console.error('获取推荐支付方式失败:', error);
             res.status(500).json({
                 success: false,
-                message: '获取推荐支付方式失败'
+                message: '获取支付方式失败'
             });
         }
     }
