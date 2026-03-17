@@ -36,37 +36,13 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // ==================== 3. Stripe Webhook 路由（使用原始 body） ====================
 // 必须在 express.json() 之前
-app.post('/api/payment/stripe/webhook', 
+app.post('/api/payment/stripe/webhook',
   express.raw({ type: 'application/json' }),
-  (req, res) => {
-    console.log('📩 收到 Stripe Webhook 请求');
-    
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    
-    // 基础验证
-    if (!sig) {
-      console.error('❌ 缺少 Stripe-Signature 请求头');
-      return res.status(400).json({ error: 'Missing signature header' });
-    }
-    
-    if (!webhookSecret) {
-      console.error('❌ STRIPE_WEBHOOK_SECRET 环境变量未配置');
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-    
-    let event;
-    try {
-      // 🔥 关键修复2：使用已初始化的 stripe 实例
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      console.log(`✅ Webhook 验证成功: ${event.type}`);
-    } catch (err) {
-      console.error('❌ Webhook 签名验证失败:', err.message);
-      return res.status(400).json({ error: `Webhook Error: ${err.message}` });
-    }
-    
-    // 返回成功响应（实际业务处理应在后续队列或异步进行）
-    res.json({ received: true, eventType: event.type });
+  (req, res, next) => {
+    // 直接将请求重定向到 paymentController 的 stripeWebhook 方法
+    const paymentController = require('./controllers/paymentController');
+    // 因为原控制器方法需要 `req` 和 `res`，这里直接传递
+    paymentController.stripeWebhook(req, res).catch(next);
   }
 );
 

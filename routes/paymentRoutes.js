@@ -16,7 +16,6 @@ router.get('/stripe/config', paymentController.getStripeConfig); // 不需要认
 // 支付通知路由（不需要认证）
 router.post('/alipay/notify', express.urlencoded({ extended: false }), paymentController.alipayNotify); // 异步通知
 router.post('/wechat/notify', express.json(), paymentController.wechatNotify);
-router.post('/stripe/webhook', express.raw({ type: 'application/json' }), paymentController.stripeWebhook); 
 
 
 module.exports = router;
