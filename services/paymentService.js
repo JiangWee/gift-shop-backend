@@ -46,25 +46,25 @@ class PaymentService {
                 return { success: false, message: '订单状态不允许支付' };
             }
 
-            // 🔥 修改：根据订单货币计算金额
-            let amount = 0;
+            // 🔥 关键修改：使用订单创建时锁定的金额和汇率
+            let paymentAmount = 0;
             let description = `礼品订单：${order.product_name}`;
-            let currency = 'cny';  // 默认人民币
+            let currency = 'cny';
             
-            if (order.currency === 'USD' && order.exchange_rate) {
-                // 如果订单货币是美元，使用显示价格
-                amount = Math.round((order.display_price || order.price) * 100); // 转换为分
+            // 始终使用订单的 display_price 作为支付金额
+            // 因为 display_price 已经是创建时转换好的最终价格
+            if (order.currency === 'USD') {
+                paymentAmount = Math.round(order.display_price * 100); // 转换为分
                 description += ` (美元支付)`;
                 currency = 'usd';
             } else {
-                // 默认人民币
-                amount = Math.round(order.price * 100); // 转换为分
+                paymentAmount = Math.round(order.display_price * 100);
                 description += ` (人民币支付)`;
             }
 
             const paymentData = {
                 orderId: orderId,
-                amount: amount,
+                amount: paymentAmount,
                 description: description,
                 ip: userIp,
                 openid: openid

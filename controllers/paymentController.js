@@ -178,7 +178,7 @@ class PaymentController {
      */
     async queryPaymentStatus(req, res) {
         try {
-            const { orderId, paymentMethod } = req.query;
+            const { orderId, paymentMethod, paymentIntentId } = req.query;
             const user = req.user;
             
             console.log('🔍 查询支付状态:', { orderId, paymentMethod, userId: user.userId });
@@ -206,7 +206,11 @@ class PaymentController {
                 });
             }
             
-            const result = await paymentService.queryPaymentStatus(orderId, paymentMethod);
+            const result = await paymentService.queryPaymentStatus(
+                orderId, 
+                paymentMethod, 
+                paymentIntentId
+            );
             
             if (!result.success) {
                 return res.status(400).json(result);

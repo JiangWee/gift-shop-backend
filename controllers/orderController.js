@@ -123,10 +123,10 @@ class OrderController {
                     userId: order.user_id,
                     productId: order.product_id,
                     productName: order.product_name,
-                    price: parseFloat(order.price),
-                    currency: order.currency || 'CNY',  // 🔥 新增
-                    displayPrice: parseFloat(order.display_price) || parseFloat(order.price),  // 🔥 新增
-                    exchangeRate: parseFloat(order.exchange_rate) || 1.0,  // 🔥 新增
+                    price: parseFloat(order.price),          // 人民币原价
+                    currency: order.currency || 'CNY',       // 创建时币种
+                    displayPrice: parseFloat(order.display_price) || parseFloat(order.price), // 创建时显示价格
+                    exchangeRate: parseFloat(order.exchange_rate) || 1.0, // 创建时汇率
                     quantity: order.quantity,
                     buyerInfo: JSON.parse(order.buyer_info || '{}'),
                     recipientInfo: JSON.parse(order.recipient_info || '{}'),
