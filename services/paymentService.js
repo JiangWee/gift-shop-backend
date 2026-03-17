@@ -104,7 +104,7 @@ class PaymentService {
                 // 更新订单支付信息
                 await orderModel.updatePaymentInfo(orderId, {
                     paymentMethod: actualMethod, // 保存实际使用的支付方式
-                    paymentAmount: amount
+                    paymentAmount: paymentAmount
                 });
                 
                 // 返回结果时带上实际使用的支付方式
