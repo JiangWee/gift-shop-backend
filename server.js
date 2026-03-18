@@ -79,6 +79,7 @@ const initializeApp = async () => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/contact', require('./routes/contactRoutes'));
 
 // ==================== 7. 全局错误处理 ====================
 app.use((error, req, res, next) => {
