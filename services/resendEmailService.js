@@ -776,6 +776,213 @@ ${message}
         return await this.sendEmail(toEmail, emailSubject, htmlContent, textContent, ccEmails.length > 0 ? ccEmails : undefined);
     }
 
+    /**
+     * 发送医疗咨询表单邮件
+     * @param {Object} inquiryData - 医疗咨询表单数据
+     */
+    async sendMedicalInquiryEmail(inquiryData) {
+        const {
+            firstName,
+            lastName,
+            email,
+            phone,
+            country,
+            dateOfBirth,
+            serviceType,
+            conditions,
+            medicalHistory,
+            preferredDate,
+            duration,
+            groupSize,
+            accommodation,
+            specialRequests
+        } = inquiryData;
+
+        // 收件人邮箱 - 从环境变量获取，默认为客服邮箱
+        const toEmail = process.env.MEDICAL_INQUIRY_EMAIL || process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.cn';
+        
+        // 抄送邮箱
+        const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',').map(e => e.trim()).filter(e => e) : [];
+        
+        // 服务类型映射
+        const serviceTypeMap = {
+            'health-checkup': 'Comprehensive Health Checkup',
+            'dental': 'Dental Treatment',
+            'tcm': 'Traditional Chinese Medicine',
+            'cardiology': 'Cardiology',
+            'orthopedics': 'Orthopedics',
+            'ophthalmology': 'Ophthalmology',
+            'gynecology': 'Gynecology',
+            'other': 'Other'
+        };
+
+        const serviceTypeDisplay = serviceTypeMap[serviceType] || serviceType;
+        
+        // 住宿类型映射
+        const accommodationMap = {
+            'hotel': 'Hotel (Need help booking)',
+            'apartment': 'Apartment / Rental',
+            'hospital': 'Hospital Housing',
+            'own': 'I\'ll arrange my own'
+        };
+        
+        const accommodationDisplay = accommodationMap[accommodation] || 'Not specified';
+
+        const emailSubject = `🏥 New Medical Inquiry - ${firstName} ${lastName} - ${serviceTypeDisplay}`;
+        
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+                <div style="background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <!-- 头部 -->
+                    <div style="text-align: center; border-bottom: 2px solid #2a9d8f; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #2a9d8f; margin: 0;">🏥 ChinaCare Medical Tourism</h1>
+                        <p style="color: #666; font-size: 16px;">New Medical Inquiry Received</p>
+                    </div>
+                    
+                    <!-- 客户信息 -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #2a9d8f; padding-left: 10px;">Client Information</h2>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>Name:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${firstName} ${lastName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Email:</strong></td>
+                                <td style="padding: 8px 0; color: #333;">
+                                    <a href="mailto:${email}" style="color: #2a9d8f; text-decoration: none;">${email}</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Phone:</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${phone}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Country:</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${country}</td>
+                            </tr>
+                            ${dateOfBirth ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Date of Birth:</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${dateOfBirth}</td>
+                            </tr>
+                            ` : ''}
+                        </table>
+                    </div>
+                    
+                    <!-- 医疗服务需求 -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #e9c46a; padding-left: 10px;">Medical Service Required</h2>
+                        <div style="background: #fef9e7; border: 1px solid #f4d03f; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <p style="margin: 0;"><strong>Service Type:</strong> ${serviceTypeDisplay}</p>
+                            ${conditions && conditions.length > 0 ? `
+                            <p style="margin: 10px 0 0 0;"><strong>Existing Conditions:</strong> ${conditions.join(', ')}</p>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 健康状况描述 -->
+                    ${medicalHistory ? `
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #f4a261; padding-left: 10px;">Medical History / Concerns</h2>
+                        <div style="background: #fff5e6; border: 1px solid #f4a261; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <p style="margin: 0; color: #333; line-height: 1.8; white-space: pre-wrap;">${medicalHistory}</p>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- 旅行偏好 -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #2a9d8f; padding-left: 10px;">Travel Preferences</h2>
+                        <div style="background: #e6f9f7; border: 1px solid #2a9d8f; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <table style="width: 100%;">
+                                ${preferredDate ? `
+                                <tr>
+                                    <td style="padding: 8px 0; width: 120px;"><strong>Preferred Date:</strong></td>
+                                    <td style="padding: 8px 0;">${preferredDate}</td>
+                                </tr>
+                                ` : ''}
+                                ${duration ? `
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Duration:</strong></td>
+                                    <td style="padding: 8px 0;">${duration} days</td>
+                                </tr>
+                                ` : ''}
+                                ${groupSize ? `
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Group Size:</strong></td>
+                                    <td style="padding: 8px 0;">${groupSize} person(s)</td>
+                                </tr>
+                                ` : ''}
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Accommodation:</strong></td>
+                                    <td style="padding: 8px 0;">${accommodationDisplay}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 特殊要求 -->
+                    ${specialRequests ? `
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #9b59b6; padding-left: 10px;">Special Requests</h2>
+                        <div style="background: #f5eef8; border: 1px solid #9b59b6; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <p style="margin: 0; color: #333; line-height: 1.8; white-space: pre-wrap;">${specialRequests}</p>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- 操作提示 -->
+                    <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                        <p style="margin: 0; color: #666; font-size: 14px;">
+                            <strong>💡 Action Required:</strong> Please contact the client within 24 hours to discuss their medical needs and provide a personalized treatment plan.
+                        </p>
+                    </div>
+                    
+                    <!-- 底部 -->
+                    <div style="border-top: 2px dashed #eee; padding-top: 20px; margin-top: 30px; text-align: center;">
+                        <p style="color: #ccc; font-size: 12px; margin: 10px 0 0 0;">
+                            This email was automatically generated from ChinaCare Medical Tourism website<br>
+                            Submitted at: ${new Date().toLocaleString('en-US')}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const textContent = `
+🏥 ChinaCare Medical Tourism - New Inquiry
+
+Client Information:
+- Name: ${firstName} ${lastName}
+- Email: ${email}
+- Phone: ${phone}
+- Country: ${country}
+${dateOfBirth ? `- Date of Birth: ${dateOfBirth}` : ''}
+
+Medical Service Required:
+- Service Type: ${serviceTypeDisplay}
+${conditions && conditions.length > 0 ? `- Existing Conditions: ${conditions.join(', ')}` : ''}
+
+${medicalHistory ? `Medical History / Concerns:
+${medicalHistory}
+` : ''}
+Travel Preferences:
+${preferredDate ? `- Preferred Date: ${preferredDate}` : ''}
+${duration ? `- Duration: ${duration} days` : ''}
+${groupSize ? `- Group Size: ${groupSize} person(s)` : ''}
+- Accommodation: ${accommodationDisplay}
+
+${specialRequests ? `Special Requests:
+${specialRequests}
+` : ''}
+---
+Submitted at: ${new Date().toLocaleString('en-US')}
+        `;
+
+        return await this.sendEmail(toEmail, emailSubject, htmlContent, textContent, ccEmails.length > 0 ? ccEmails : undefined);
+    }
+
 }
 
 // 导出单例实例
