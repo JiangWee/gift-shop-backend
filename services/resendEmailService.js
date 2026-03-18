@@ -106,10 +106,15 @@ class ResendEmailService {
 
     // 发送订单确认邮件
     async sendOrderConfirmationEmail(user, order) {
-        const subject = `订单确认 - 订单号: ${order.orderId}`;
+        // 判断用户语言：USD货币表示英文用户，其他为中文用户
+        const isEnglish = order.currency === 'USD';
+        
+        const subject = isEnglish 
+            ? `Order Confirmation - Order #${order.orderId}`
+            : `订单确认 - 订单号: ${order.orderId}`;
         
         // 从环境变量获取跟单员邮箱，用逗号分隔
-        const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',') : [];
+        const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',').map(e => e.trim()).filter(e => e) : [];
         
         // 解析寄件人和收件人信息（从订单数据中）
         const buyerInfo = order.buyerInfo || {};
@@ -135,20 +140,47 @@ class ResendEmailService {
             if (recipientInfo.state) addressParts.push(recipientInfo.state);
             if (recipientInfo.zip) addressParts.push(recipientInfo.zip);
             if (recipientInfo.country) {
-                // 将国家代码转换为中文显示
-                const countryMap = {
-                    'china': '中国',
-                    'usa': '美国',
-                    'uk': '英国',
-                    'germany': '德国',
-                    'japan': '日本'
-                };
-                addressParts.push(countryMap[recipientInfo.country] || recipientInfo.country);
+                if (isEnglish) {
+                    // 英文显示国家名称
+                    const countryMapEn = {
+                        'china': 'China',
+                        'usa': 'United States',
+                        'uk': 'United Kingdom',
+                        'germany': 'Germany',
+                        'japan': 'Japan'
+                    };
+                    addressParts.push(countryMapEn[recipientInfo.country] || recipientInfo.country);
+                } else {
+                    // 中文显示国家名称
+                    const countryMap = {
+                        'china': '中国',
+                        'usa': '美国',
+                        'uk': '英国',
+                        'germany': '德国',
+                        'japan': '日本'
+                    };
+                    addressParts.push(countryMap[recipientInfo.country] || recipientInfo.country);
+                }
             }
-            recipientAddress = addressParts.join('，');
+            recipientAddress = isEnglish 
+                ? addressParts.join(', ')
+                : addressParts.join('，');
         }
         
-        const html = `
+        // 根据语言选择邮件模板
+        const html = isEnglish ? this.getEnglishOrderEmail(order, user, buyerInfo, recipientInfo, recipientAddress, priceDisplay, totalDisplay, ccEmails) : this.getChineseOrderEmail(order, user, buyerInfo, recipientInfo, recipientAddress, priceDisplay, totalDisplay, ccEmails);
+        
+        // 纯文本版本（备用）
+        const text = isEnglish ? this.getEnglishOrderText(order, user, buyerInfo, recipientInfo, recipientAddress, ccEmails) : this.getChineseOrderText(order, user, buyerInfo, recipientInfo, recipientAddress, ccEmails);
+
+        return await this.sendEmail(user.email, subject, html, text, ccEmails.length > 0 ? ccEmails : undefined);
+    }
+
+    /**
+     * 获取中文订单确认邮件HTML模板
+     */
+    getChineseOrderEmail(order, user, buyerInfo, recipientInfo, recipientAddress, priceDisplay, totalDisplay, ccEmails) {
+        return `
             <div style="font-family: 'Microsoft YaHei', Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
                 <div style="background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                     <!-- 头部 -->
@@ -198,7 +230,7 @@ class ResendEmailService {
                                     <td style="padding: 8px 0; border-top: 1px dashed #ddd; padding-top: 12px;">
                                         <strong style="font-size: 16px;">订单总额：</strong>
                                         <span style="color: #ff4d4f; font-size: 20px; font-weight: bold;">
-                                            ${totalDisplay} ${order.currency === 'USD' ? '(美元)' : '(人民币)'} <!-- 🔥 修改这里 -->
+                                            ${totalDisplay} (人民币)
                                         </span>
                                     </td>
                                 </tr>
@@ -292,56 +324,250 @@ class ResendEmailService {
                 </div>
             </div>
         `;
-        
-        // 纯文本版本（备用）
-        const text = `
-            订单确认 - 订单号: ${order.orderId}
+    }
 
-            订单信息：
-            - 订单编号：${order.orderId}
-            - 下单时间：${new Date().toLocaleString('zh-CN')}
-            - 订单状态：${order.status === 'unpaid' ? '待支付' : order.status}
-
-            商品详情：
-            - 商品名称：${order.productName}
-            - 单价：¥${parseFloat(order.price).toFixed(2)}
-            - 数量：${order.quantity}
-            - 订单总额：¥${(order.price * order.quantity).toFixed(2)}
-
-            寄件人信息：
-            - 姓名：${buyerInfo.name || '未提供'}
-            - 电话：${buyerInfo.phone || '未提供'}
-            - 邮箱：${user.email}
-
-            收件人信息：
-            - 姓名：${recipientInfo.name || '未提供'}
-            - 电话：${recipientInfo.phone || '未提供'}
-            - 地址：${recipientAddress || '未提供'}
-
-            ${order.giftMessage ? `贺卡祝福：${order.giftMessage}` : ''}
-
-            ${ccEmails.length > 0 ? `
-            订单服务：
-            您的订单已分配专属跟单员，如需修改订单信息或咨询物流状态，可直接联系：
-            ${ccEmails.map(email => `- 跟单员邮箱：${email.trim()}`).join('\n')}
-            ` : ''}
-        `;
-
-        // 准备邮件参数
-        const emailParams = {
-            from: 'orders@giftbuybuy.cn', // 使用您的域名邮箱
-            to: user.email,
-            subject: subject,
-            html: html,
-            text: text
+    /**
+     * 获取英文订单确认邮件HTML模板
+     */
+    getEnglishOrderEmail(order, user, buyerInfo, recipientInfo, recipientAddress, priceDisplay, totalDisplay, ccEmails) {
+        const statusMap = {
+            'unpaid': 'Pending Payment',
+            'pending': 'Pending',
+            'confirmed': 'Confirmed',
+            'shipped': 'Shipped',
+            'delivered': 'Delivered',
+            'cancelled': 'Cancelled'
         };
         
-        // 如果配置了抄送邮箱，则加入cc参数
-        if (ccEmails.length > 0) {
-            emailParams.cc = ccEmails.map(email => email.trim()).filter(email => email);
-        }
+        return `
+            <div style="font-family: Arial, 'Helvetica Neue', sans-serif; max-width: 700px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+                <div style="background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <div style="text-align: center; border-bottom: 2px solid #1890ff; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #1890ff; margin: 0;">Order Created Successfully!</h1>
+                        <p style="color: #666; font-size: 16px;">Thank you for your purchase. Your order has been confirmed.</p>
+                    </div>
+                    
+                    <!-- Order Information -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #1890ff; padding-left: 10px;">Order Information</h2>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>Order ID:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-weight: bold;">${order.orderId}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Order Date:</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${new Date().toLocaleString('en-US')}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>Status:</strong></td>
+                                <td style="padding: 8px 0;">
+                                    <span style="background: #e6f7ff; color: #1890ff; padding: 3px 10px; border-radius: 4px; font-size: 12px;">
+                                        ${statusMap[order.status] || order.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Product Information -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #52c41a; padding-left: 10px;">Product Details</h2>
+                        <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Product:</strong> ${order.productName}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Unit Price:</strong> $${parseFloat(order.display_price || order.price).toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Quantity:</strong> ${order.quantity}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; border-top: 1px dashed #ddd; padding-top: 12px;">
+                                        <strong style="font-size: 16px;">Order Total:</strong>
+                                        <span style="color: #ff4d4f; font-size: 20px; font-weight: bold;">
+                                            ${totalDisplay} (USD)
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Sender Information (Buyer) -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #722ed1; padding-left: 10px;">Sender Information</h2>
+                        <div style="background: #f9f0ff; border: 1px solid #d3adf7; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px 0; width: 100px;"><strong>Name:</strong></td>
+                                    <td style="padding: 8px 0;">${buyerInfo.name || 'Not provided'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Phone:</strong></td>
+                                    <td style="padding: 8px 0;">${buyerInfo.phone || 'Not provided'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Email:</strong></td>
+                                    <td style="padding: 8px 0;">${user.email}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Recipient Information -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #fa8c16; padding-left: 10px;">Recipient Information</h2>
+                        <div style="background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px 0; width: 100px;"><strong>Name:</strong></td>
+                                    <td style="padding: 8px 0;">${recipientInfo.name || 'Not provided'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Phone:</strong></td>
+                                    <td style="padding: 8px 0;">${recipientInfo.phone || 'Not provided'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; vertical-align: top;"><strong>Address:</strong></td>
+                                    <td style="padding: 8px 0;">
+                                        ${recipientAddress || 'Not provided'}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Gift Message -->
+                    ${order.giftMessage ? `
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #13c2c2; padding-left: 10px;">Gift Message</h2>
+                        <div style="background: #e6fffb; border: 1px solid #87e8de; border-radius: 6px; padding: 20px; margin-top: 15px;">
+                            <p style="font-style: italic; color: #08979c; font-size: 16px; line-height: 1.6; margin: 0;">
+                                "${order.giftMessage}"
+                            </p>
+                            ${order.giftMessage.length > 180 ? `
+                            <p style="color: #ff4d4f; font-size: 12px; margin-top: 10px;">
+                                ※ Note: Message exceeds 180 character limit and has been truncated.
+                            </p>` : ''}
+                        </div>
+                    </div>` : ''}
+                    
+                    <!-- Customer Service Info -->
+                    ${ccEmails.length > 0 ? `
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #f5222d; padding-left: 10px;">Order Support</h2>
+                        <div style="background: #fff1f0; border: 1px solid #ffa39e; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <p style="margin: 0 0 10px 0;">Your order has been assigned a dedicated support specialist. If you need to modify your order or inquire about shipping status, please contact:</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${ccEmails.map(email => `<li style="margin-bottom: 5px;"><strong>Support Email:</strong> ${email.trim()}</li>`).join('')}
+                            </ul>
+                            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">
+                                ※ A copy of this email has been sent to our support team. They will proactively follow up on your order.
+                            </p>
+                        </div>
+                    </div>` : ''}
+                    
+                    <!-- Footer -->
+                    <div style="border-top: 2px dashed #eee; padding-top: 20px; margin-top: 30px; text-align: center;">
+                        <p style="color: #999; font-size: 14px; margin: 5px 0;">
+                            You can also log in to the website to view order details and tracking information.
+                        </p>
+                        <p style="color: #ccc; font-size: 12px; margin: 10px 0 0 0;">
+                            This email was sent automatically. Please do not reply directly.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
-        return await this.sendEmail(user.email, subject, html, text, ccEmails.length > 0 ? ccEmails : undefined);
+    /**
+     * 获取中文订单确认邮件纯文本模板
+     */
+    getChineseOrderText(order, user, buyerInfo, recipientInfo, recipientAddress, ccEmails) {
+        return `
+订单确认 - 订单号: ${order.orderId}
+
+订单信息：
+- 订单编号：${order.orderId}
+- 下单时间：${new Date().toLocaleString('zh-CN')}
+- 订单状态：${order.status === 'unpaid' ? '待支付' : order.status}
+
+商品详情：
+- 商品名称：${order.productName}
+- 单价：¥${parseFloat(order.price).toFixed(2)}
+- 数量：${order.quantity}
+- 订单总额：¥${(order.price * order.quantity).toFixed(2)}
+
+寄件人信息：
+- 姓名：${buyerInfo.name || '未提供'}
+- 电话：${buyerInfo.phone || '未提供'}
+- 邮箱：${user.email}
+
+收件人信息：
+- 姓名：${recipientInfo.name || '未提供'}
+- 电话：${recipientInfo.phone || '未提供'}
+- 地址：${recipientAddress || '未提供'}
+
+${order.giftMessage ? `贺卡祝福：${order.giftMessage}` : ''}
+
+${ccEmails.length > 0 ? `
+订单服务：
+您的订单已分配专属跟单员，如需修改订单信息或咨询物流状态，可直接联系：
+${ccEmails.map(email => `- 跟单员邮箱：${email.trim()}`).join('\n')}
+` : ''}
+        `;
+    }
+
+    /**
+     * 获取英文订单确认邮件纯文本模板
+     */
+    getEnglishOrderText(order, user, buyerInfo, recipientInfo, recipientAddress, ccEmails) {
+        const statusMap = {
+            'unpaid': 'Pending Payment',
+            'pending': 'Pending',
+            'confirmed': 'Confirmed',
+            'shipped': 'Shipped',
+            'delivered': 'Delivered',
+            'cancelled': 'Cancelled'
+        };
+        
+        return `
+Order Confirmation - Order #${order.orderId}
+
+Order Information:
+- Order ID: ${order.orderId}
+- Order Date: ${new Date().toLocaleString('en-US')}
+- Status: ${statusMap[order.status] || order.status}
+
+Product Details:
+- Product: ${order.productName}
+- Unit Price: $${parseFloat(order.display_price || order.price).toFixed(2)}
+- Quantity: ${order.quantity}
+- Order Total: $${(parseFloat(order.display_price || order.price) * order.quantity).toFixed(2)}
+
+Sender Information:
+- Name: ${buyerInfo.name || 'Not provided'}
+- Phone: ${buyerInfo.phone || 'Not provided'}
+- Email: ${user.email}
+
+Recipient Information:
+- Name: ${recipientInfo.name || 'Not provided'}
+- Phone: ${recipientInfo.phone || 'Not provided'}
+- Address: ${recipientAddress || 'Not provided'}
+
+${order.giftMessage ? `Gift Message: ${order.giftMessage}` : ''}
+
+${ccEmails.length > 0 ? `
+Order Support:
+Your order has been assigned a dedicated support specialist. If you need to modify your order or inquire about shipping status, please contact:
+${ccEmails.map(email => `- Support Email: ${email.trim()}`).join('\n')}
+` : ''}
+        `;
     }
 
     // 发送密码重置邮件
@@ -455,6 +681,9 @@ class ResendEmailService {
         // 收件人邮箱 - 从环境变量获取，默认为客服邮箱
         const toEmail = process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.cn';
         
+        // 抄送邮箱 - 从环境变量ORDER_CC_EMAILS获取，用逗号分隔
+        const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',').map(e => e.trim()).filter(e => e) : [];
+        
         const emailSubject = `【网站留言】${subject} - 来自 ${name}`;
         
         const htmlContent = `
@@ -544,7 +773,7 @@ ${message}
 此邮件由 Gift Buy Buy 网站联系表单自动生成
         `;
 
-        return await this.sendEmail(toEmail, emailSubject, htmlContent, textContent);
+        return await this.sendEmail(toEmail, emailSubject, htmlContent, textContent, ccEmails.length > 0 ? ccEmails : undefined);
     }
 
 }
