@@ -124,7 +124,36 @@ const validateResetPassword = [
         .withMessage('密码必须包含大小写字母和数字')
 ];
 
-
+// 联系表单验证规则
+const validateContactForm = [
+    body('name')
+        .notEmpty()
+        .withMessage('姓名不能为空')
+        .isLength({ min: 2, max: 50 })
+        .withMessage('姓名长度必须在2-50个字符之间'),
+    
+    body('email')
+        .isEmail()
+        .normalizeEmail()
+        .withMessage('请输入有效的邮箱地址'),
+    
+    body('subject')
+        .notEmpty()
+        .withMessage('主题不能为空')
+        .isLength({ min: 2, max: 200 })
+        .withMessage('主题长度必须在2-200个字符之间'),
+    
+    body('message')
+        .notEmpty()
+        .withMessage('消息内容不能为空')
+        .isLength({ min: 10, max: 2000 })
+        .withMessage('消息内容长度必须在10-2000个字符之间'),
+    
+    body('phone')
+        .optional({ nullable: true, checkFalsy: true })
+        .matches(/^[\d\s\-+()]{7,20}$/)
+        .withMessage('请输入有效的电话号码')
+];
 
 module.exports = {
     validateRegistration,
