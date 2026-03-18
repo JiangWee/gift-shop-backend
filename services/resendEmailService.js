@@ -549,6 +549,115 @@ ${message}
 
 }
 
+    /**
+     * 发送联系表单邮件
+     * @param {Object} contactData - 联系表单数据
+     * @param {string} contactData.name - 用户姓名
+     * @param {string} contactData.email - 用户邮箱
+     * @param {string} contactData.phone - 用户电话（可选）
+     * @param {string} contactData.subject - 消息主题
+     * @param {string} contactData.message - 消息内容
+     */
+    async sendContactFormEmail(contactData) {
+        const { name, email, phone, subject, message } = contactData;
+        
+        // 收件人邮箱 - 从环境变量获取，默认为客服邮箱
+        const toEmail = process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.cn';
+        
+        const emailSubject = `【网站留言】${subject} - 来自 ${name}`;
+        
+        const htmlContent = `
+            <div style="font-family: 'Microsoft YaHei', Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+                <div style="background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <!-- 头部 -->
+                    <div style="text-align: center; border-bottom: 2px solid #d4af37; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #d4af37; margin: 0;">🎁 Gift Buy Buy</h1>
+                        <p style="color: #666; font-size: 16px;">收到新的客户留言</p>
+                    </div>
+                    
+                    <!-- 客户信息 -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #d4af37; padding-left: 10px;">客户信息</h2>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; width: 100px;"><strong>姓名：</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>邮箱：</strong></td>
+                                <td style="padding: 8px 0; color: #333;">
+                                    <a href="mailto:${email}" style="color: #1890ff; text-decoration: none;">${email}</a>
+                                </td>
+                            </tr>
+                            ${phone ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>电话：</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${phone}</td>
+                            </tr>
+                            ` : ''}
+                            <tr>
+                                <td style="padding: 8px 0; color: #666;"><strong>提交时间：</strong></td>
+                                <td style="padding: 8px 0; color: #333;">${new Date().toLocaleString('zh-CN')}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- 消息内容 -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #52c41a; padding-left: 10px;">消息主题</h2>
+                        <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                            <p style="margin: 0; color: #333; font-weight: bold;">${subject}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="color: #333; border-left: 4px solid #1890ff; padding-left: 10px;">消息内容</h2>
+                        <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 6px; padding: 20px; margin-top: 15px;">
+                            <p style="margin: 0; color: #333; line-height: 1.8; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作提示 -->
+                    <div style="background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                        <p style="margin: 0; color: #666; font-size: 14px;">
+                            <strong>💡 提示：</strong>您可以直接回复此邮件与客户取得联系，或点击客户邮箱地址发送邮件。
+                        </p>
+                    </div>
+                    
+                    <!-- 底部 -->
+                    <div style="border-top: 2px dashed #eee; padding-top: 20px; margin-top: 30px; text-align: center;">
+                        <p style="color: #ccc; font-size: 12px; margin: 10px 0 0 0;">
+                            此邮件由 Gift Buy Buy 网站联系表单自动生成<br>
+                            发送时间：${new Date().toLocaleString('zh-CN')}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const textContent = `
+【Gift Buy Buy 网站留言】
+
+客户信息：
+- 姓名：${name}
+- 邮箱：${email}
+${phone ? `- 电话：${phone}` : ''}
+- 提交时间：${new Date().toLocaleString('zh-CN')}
+
+消息主题：${subject}
+
+消息内容：
+${message}
+
+---
+此邮件由 Gift Buy Buy 网站联系表单自动生成
+        `;
+
+        return await this.sendEmail(toEmail, emailSubject, htmlContent, textContent);
+    }
+
+}
+
 // 导出单例实例
 const resendEmailService = new ResendEmailService();
 module.exports = resendEmailService;
