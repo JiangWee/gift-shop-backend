@@ -162,5 +162,6 @@ module.exports = {
     handleValidationErrors,
     validateForgotPassword,
     validateVerifyCode,
-    validateResetPassword
+    validateResetPassword,
+    validateContactForm
 };
