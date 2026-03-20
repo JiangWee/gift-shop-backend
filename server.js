@@ -31,7 +31,8 @@ const allowedOrigins = [
   'https://www.giftbuybuy.cn',
   'https://www.giftbuybuy.com', 
   'https://giftbuybuy.vercel.app',
-  'https://chinacare.health'
+  'https://chinacare.health',
+  'https://www.chinacare.health'
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
