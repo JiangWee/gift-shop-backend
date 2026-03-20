@@ -26,11 +26,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // ==================== 2. 基础中间件配置 ====================
+// 生产环境CORS配置
 const allowedOrigins = [
   'https://www.giftbuybuy.cn',
   'https://www.giftbuybuy.com', 
   'https://giftbuybuy.vercel.app',
-  'http://localhost:3000'
+  'https://chinacare.health'
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
