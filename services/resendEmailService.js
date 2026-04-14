@@ -678,8 +678,8 @@ ${ccEmails.map(email => `- Support Email: ${email.trim()}`).join('\n')}
     async sendContactFormEmail(contactData) {
         const { name, email, phone, subject, message } = contactData;
         
-        // 收件人邮箱 - 从环境变量获取，默认为客服邮箱
-        const toEmail = process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.cn';
+        // 收件人邮箱 - 从环境变量获取，默认为B2B客服邮箱
+        const toEmail = process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.com';
         
         // 抄送邮箱 - 从环境变量ORDER_CC_EMAILS获取，用逗号分隔
         const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',').map(e => e.trim()).filter(e => e) : [];
@@ -798,8 +798,8 @@ ${message}
             specialRequests
         } = inquiryData;
 
-        // 收件人邮箱 - 从环境变量获取，默认为客服邮箱
-        const toEmail = process.env.MEDICAL_INQUIRY_EMAIL || process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.cn';
+        // 收件人邮箱 - 从环境变量获取，默认为B2B客服邮箱
+        const toEmail = process.env.MEDICAL_INQUIRY_EMAIL || process.env.CONTACT_FORM_EMAIL || 'service@giftbuybuy.com';
         
         // 抄送邮箱
         const ccEmails = process.env.ORDER_CC_EMAILS ? process.env.ORDER_CC_EMAILS.split(',').map(e => e.trim()).filter(e => e) : [];
