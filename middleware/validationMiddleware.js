@@ -60,30 +60,12 @@ const validateOrder = [
 const handleValidationErrors = (req, res, next) => {
     const errors = validationResult(req);
     
-    // 添加调试日志
-    console.log('📝 注册请求数据:', {
-        email: req.body.email,
-        phone: req.body.phone,
-        password: req.body.password ? '***' : '未提供',
-        confirm: req.body.confirm ? '***' : '未提供',
-        passwordMatch: req.body.password === req.body.confirm
-    });
-    
-    console.log('🔍 验证错误:', errors.array());
-    
     if (!errors.isEmpty()) {
+        console.log('🔍 验证错误:', errors.array());
         return res.status(400).json({
             success: false,
             message: '数据验证失败',
-            errors: errors.array(),
-            debug: {
-                receivedData: {
-                    email: req.body.email,
-                    phone: req.body.phone,
-                    hasPassword: !!req.body.password,
-                    hasConfirm: !!req.body.confirm
-                }
-            }
+            errors: errors.array()
         });
     }
     next();
@@ -146,8 +128,8 @@ const validateContactForm = [
     body('message')
         .notEmpty()
         .withMessage('消息内容不能为空')
-        .isLength({ min: 10, max: 2000 })
-        .withMessage('消息内容长度必须在10-2000个字符之间'),
+        .isLength({ min: 5, max: 2000 })
+        .withMessage('消息内容长度必须在5-2000个字符之间'),
     
     body('phone')
         .optional({ nullable: true, checkFalsy: true })
